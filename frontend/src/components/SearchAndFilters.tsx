@@ -1,100 +1,123 @@
-import React from "react";
-import {Input} from "@/components/ui/input.tsx";
-import {Button} from "@/components/ui/button.tsx";
-import {CiSearch} from "react-icons/ci";
+import { Search, MapPin, Heart, ListFilter, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface SearchAndFiltersProps {
-    searchTerm: string;
-    onSearchChange: (value: string) => void;
-    causePosition: string;
-    onCauseChange: (value: string) => void;
-    regionPosition: string;
-    onRegionChange: (value: string) => void;
-    sortPosition: string;
-    onSortChange: (value: string) => void;
+  searchTerm: string;
+  onSearchChange: (value: string) => void;
+  causePosition: string;
+  onCauseChange: (value: string) => void;
+  regionPosition: string;
+  onRegionChange: (value: string) => void;
+  sortPosition: string;
+  onSortChange: (value: string) => void;
 }
 
-export const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
-                                                                      searchTerm,
-                                                                      onSearchChange,
-                                                                      causePosition,
-                                                                      onCauseChange,
-                                                                      regionPosition,
-                                                                      onRegionChange,
-                                                                      sortPosition,
-                                                                      onSortChange,
-                                                                  }) => {
-    return (
-        <>
-            <section className={"flex mt-5 gap-2"}>
-                <Input
-                    className="rounded-full px-4 py-2 border border-gray-300"
-                    placeholder="Pesquise"
-                    value={searchTerm}
-                    onChange={(e) => onSearchChange(e.target.value)}
-                />
-                <Button className={"h-8 w-12"}>
-                    <CiSearch className={"h-6 w-6"}/>
-                </Button>
-            </section>
+export const SearchAndFilters = ({
+  searchTerm,
+  onSearchChange,
+  causePosition,
+  onCauseChange,
+  regionPosition,
+  onRegionChange,
+  sortPosition,
+  onSortChange,
+}: SearchAndFiltersProps) => {
+  
+  // Função auxiliar para limpar filtros se precisar
+  const clearFilters = () => {
+    onCauseChange("");
+    onRegionChange("");
+    onSortChange("");
+    onSearchChange("");
+  };
 
-            {/*<section className="flex pt-4 gap-2">*/}
-            {/*    <DropdownMenu>*/}
-            {/*        <DropdownMenuTrigger asChild>*/}
-            {/*            <Button className="whitespace-nowrap flex-1 min-w-0">*/}
-            {/*                Causas <ChevronDownIcon className="h-6 w-6 text-blue-500" />*/}
-            {/*            </Button>*/}
-            {/*        </DropdownMenuTrigger>*/}
-            {/*        <DropdownMenuContent className="w-56 !z-[9999]">*/}
-            {/*            <DropdownMenuLabel>Selecione uma opção</DropdownMenuLabel>*/}
-            {/*            <DropdownMenuSeparator />*/}
-            {/*            <DropdownMenuRadioGroup value={causePosition} onValueChange={onCauseChange}>*/}
-            {/*                <DropdownMenuRadioItem value="Causa 1">Causa 1</DropdownMenuRadioItem>*/}
-            {/*                <DropdownMenuRadioItem value="Causa 2">Causa 2</DropdownMenuRadioItem>*/}
-            {/*                <DropdownMenuRadioItem value="Causa 3">Causa 3</DropdownMenuRadioItem>*/}
-            {/*                <DropdownMenuRadioItem value="Causa 4">Causa 4</DropdownMenuRadioItem>*/}
-            {/*                <DropdownMenuRadioItem value="Causa 5">Causa 5</DropdownMenuRadioItem>*/}
-            {/*                <DropdownMenuRadioItem value="Causa 6">Causa 6</DropdownMenuRadioItem>*/}
-            {/*                <DropdownMenuRadioItem value="Causa 7">Causa 7</DropdownMenuRadioItem>*/}
-            {/*            </DropdownMenuRadioGroup>*/}
-            {/*        </DropdownMenuContent>*/}
-            {/*    </DropdownMenu>*/}
+  const hasActiveFilters = causePosition || regionPosition || sortPosition || searchTerm;
 
-            {/*    <DropdownMenu>*/}
-            {/*        <DropdownMenuTrigger asChild>*/}
-            {/*            <Button className="whitespace-nowrap flex-1 min-w-0">*/}
-            {/*                Região <ChevronDownIcon className="h-6 w-6 text-blue-500" />*/}
-            {/*            </Button>*/}
-            {/*        </DropdownMenuTrigger>*/}
-            {/*        <DropdownMenuContent className="w-56">*/}
-            {/*            <DropdownMenuLabel>Selecione uma opção</DropdownMenuLabel>*/}
-            {/*            <DropdownMenuSeparator />*/}
-            {/*            <DropdownMenuRadioGroup value={regionPosition} onValueChange={onRegionChange}>*/}
-            {/*                <DropdownMenuRadioItem value="Zona Norte">Zona Norte</DropdownMenuRadioItem>*/}
-            {/*                <DropdownMenuRadioItem value="Zona Leste">Zona Leste</DropdownMenuRadioItem>*/}
-            {/*                <DropdownMenuRadioItem value="Zona Oeste">Zona Oeste</DropdownMenuRadioItem>*/}
-            {/*                <DropdownMenuRadioItem value="Zona Sul">Zona Sul</DropdownMenuRadioItem>*/}
-            {/*            </DropdownMenuRadioGroup>*/}
-            {/*        </DropdownMenuContent>*/}
-            {/*    </DropdownMenu>*/}
+  return (
+    <div className="flex flex-col gap-3 w-full">
+      
+      {/* Barra de Pesquisa */}
+      <div className="relative w-full">
+        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+          <Search className="w-4 h-4" />
+        </div>
+        <Input
+          placeholder="Pesquisar ONGs ou Ações..."
+          value={searchTerm}
+          onChange={(e) => onSearchChange(e.target.value)}
+          className="pl-10 rounded-full border-gray-200 bg-gray-50 h-10 text-sm placeholder:text-sm focus-visible:ring-blue-600"        />
+      </div>
 
-            {/*    <DropdownMenu>*/}
-            {/*        <DropdownMenuTrigger asChild>*/}
-            {/*            <Button className="whitespace-nowrap flex-1 min-w-0">*/}
-            {/*                Ordenar <ChevronDownIcon className="h-6 w-6 text-blue-500" />*/}
-            {/*            </Button>*/}
-            {/*        </DropdownMenuTrigger>*/}
-            {/*        <DropdownMenuContent className="w-56">*/}
-            {/*            <DropdownMenuLabel>Selecione uma opção</DropdownMenuLabel>*/}
-            {/*            <DropdownMenuSeparator />*/}
-            {/*            <DropdownMenuRadioGroup value={sortPosition} onValueChange={onSortChange}>*/}
-            {/*                <DropdownMenuRadioItem value="A-Z">Classificar A-Z</DropdownMenuRadioItem>*/}
-            {/*                <DropdownMenuRadioItem value="Z-A">Classificar Z-A</DropdownMenuRadioItem>*/}
-            {/*                <DropdownMenuRadioItem value="top">Classificar por Data</DropdownMenuRadioItem>*/}
-            {/*            </DropdownMenuRadioGroup>*/}
-            {/*        </DropdownMenuContent>*/}
-            {/*    </DropdownMenu>*/}
-            {/*</section>*/}
-        </>
-    );
+      {/* Área dos Filtros (Selects) */}
+      <div className="flex gap-1 overflow-x-auto pb-2 scrollbar-hide">
+        
+        {/* Filtro de Causas */}
+        <Select value={causePosition} onValueChange={onCauseChange}>
+          <SelectTrigger className="w-[140px] rounded-full border-gray-200 bg-white text-xs font-medium h-9">
+            <div className="flex items-center gap-2">
+               <Heart className="w-3 h-3 text-pink-500" />
+               <SelectValue placeholder="Causas" />
+            </div>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="educacao">Educação</SelectItem>
+            <SelectItem value="saude">Saúde</SelectItem>
+            <SelectItem value="meio-ambiente">Meio Ambiente</SelectItem>
+            <SelectItem value="animais">Animais</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Filtro de Região */}
+        <Select value={regionPosition} onValueChange={onRegionChange}>
+          <SelectTrigger className="w-[150px] rounded-full border-gray-200 bg-white text-xs font-medium h-9">
+            <div className="flex items-center gap-2">
+               <MapPin className="w-3 h-3 text-blue-500" />
+               <SelectValue placeholder="Localização" />
+            </div>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="recife">Recife</SelectItem>
+            <SelectItem value="olinda">Olinda</SelectItem>
+            <SelectItem value="jaboatao">Jaboatão</SelectItem>
+            <SelectItem value="interior">Interior</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Filtro de Ordenação (Opcional) */}
+        <Select value={sortPosition} onValueChange={onSortChange}>
+          <SelectTrigger className="w-[130px] rounded-full border-gray-200 bg-white text-xs font-medium h-9">
+             <div className="flex items-center gap-2">
+               <ListFilter className="w-3 h-3 text-gray-500" />
+               <SelectValue placeholder="Ordenar" />
+            </div>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="recentes">Mais Recentes</SelectItem>
+            <SelectItem value="antigos">Mais Antigos</SelectItem>
+            <SelectItem value="az">A-Z</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Botão de Limpar (só aparece se tiver filtro) */}
+        {hasActiveFilters && (
+            <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={clearFilters}
+                className="h-9 px-2 text-xs text-red-500 hover:bg-red-50 hover:text-red-600 rounded-full"
+            >
+                <X className="w-3 h-3 mr-1" /> Limpar
+            </Button>
+        )}
+      </div>
+    </div>
+  );
 };

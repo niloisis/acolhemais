@@ -1,213 +1,119 @@
-import {Button} from "@/components/ui/button.tsx";
-import {useNavigate} from "react-router-dom";
-import {TbLogout2} from "react-icons/tb";
-import {useQuery} from "react-query";
-import {Ong} from "@/pages/ong/@types/Ong.ts";
-import {api, serverURI} from "@/utils/api.ts";
-import {Skeleton} from "@/components/ui/skeleton.tsx";
-import {useEffect, useState} from "react";
-import {CgProfile} from "react-icons/cg";
-import {CardONG} from "@/components/ui/cardONG.tsx";
-import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs.tsx";
-import {SearchAndFilters} from "@/components/SearchAndFilters.tsx";
-import {Acao} from "@/pages/acao/acoes_ong/@types/Acao.ts";
-import {CardAcao} from "@/components/ui/cardAcao.tsx";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
+import Header from "@/components/common/Header"; 
+import { SearchAndFilters } from "@/components/SearchAndFilters";
+import { CardONG } from "@/components/ui/cardONG";
+import { CardAcao } from "@/components/ui/cardAcao";
+import { useOngs, useAcoes } from "@/hooks/useHomeData"; 
+import { serverURI } from "@/utils/api";
 
 export default function HomePage() {
-    const navigate = useNavigate();
-    const [searchTerm, setSearchTerm] = useState("");
-    const [banners, setBanners] = useState<{ [key: string]: string }>({});
-    const [causePosition, setCausePosition] = useState("");
-    const [regionPosition, setRegionPosition] = useState("");
-    const [sortPosition, setSortPosition] = useState("");
+  const navigate = useNavigate();
+  
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filters, setFilters] = useState({ cause: "", region: "", sort: "" });
 
+  const { data: ongList, isLoading: loadingOngs } = useOngs();
+  const { data: acoesList, isLoading: loadingAcoes } = useAcoes();
 
-    const ongQuery = useQuery({
-        queryKey: "ong_list",
-        queryFn: async (): Promise<Ong[]> => {
-            const {data} = await api.get<Ong[]>("/v1/ong/");
-            return data;
-        },
-    });
+  const handleFilterChange = (type: 'cause' | 'region' | 'sort', value: string) => {
+    setFilters({ cause: "", region: "", sort: "", [type]: value });
+  };
 
-    const acoesQuery = useQuery({
-        queryKey: "acoes_list",
-        queryFn: async (): Promise<Ong[]> => {
-            const {data} = await api.get<Acao[]>("/v1/acoes");
-            console.log(data)
-            return data;
-        },
-    });
+  const filteredOngs = ongList?.filter((ong) =>
+    ong.nome.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-    const {data: ongList} = ongQuery;
-    const {data: acoesList} = acoesQuery;
-
-    const filteredOngs = ongList?.filter((ong) =>
-        ong.nome.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    const ongId = localStorage.getItem("ongId");
-
-    // funções para GARANTIR que tem apenas um filtro ativo
-    const handleCauseChange = (value: string) => {
-        setCausePosition(value);
-        setRegionPosition("");
-        setSortPosition("");
-    };
-
-    const handleRegionChange = (value: string) => {
-        setRegionPosition(value);
-        setCausePosition("");
-        setSortPosition("");
-    };
-
-    const handleSortChange = (value: string) => {
-        setSortPosition(value);
-        setCausePosition("");
-        setRegionPosition("");
-    };
-    useEffect(() => {
-        const fetchBanners = async () => {
-            const bannersMap: { [key: string]: string } = {};
-            await Promise.all(
-                acoesList?.map(async (acao) => {
-                    try {
-                        await api.get(`/v1/acoes/${acao.id}/banner`);
-                        bannersMap[acao.id] = `/v1/acoes/${acao.id}/banner`;
-                    } catch {
-                        bannersMap[acao.id] = "";
-                    }
-                }) || []
-            );
-            setBanners(bannersMap);
-        };
-
-        if (acoesList?.length) {
-            fetchBanners();
-        }
-    }, [acoesList]);
-    if (ongQuery.isLoading) {
-        return (
-            <>
-                <Skeleton className="h-24 w-full"/>
-                <Skeleton className="h-12 w-[90%] rounded-full mx-4 my-4"/>
-                <Skeleton className="h-36 w-[90%] rounded-xl mx-4 my-4"/>
-                <Skeleton className="h-36 w-[90%] rounded-xl mx-4 my-4"/>
-                <Skeleton className="h-36 w-[90%] rounded-xl mx-4 my-4"/>
-                <Skeleton className="h-36 w-[90%] rounded-xl mx-4 my-4"/>
-            </>
-        );
-    }
-
+  if (loadingOngs || loadingAcoes) {
     return (
-        <>
-            <header className="w-full h-20 bg-[#2F49F3] bg-contain">
-                <div className={`${ongId ? "w-full " : "w-2/3 "} flex justify-between items-center p-2`}>
-                    <Button onClick={() => {
-                        localStorage.removeItem("token");
-                        localStorage.removeItem("ongId");
-                        navigate("/login")
-                    }}>
-                        <TbLogout2 className="h-6 w-6"/>
-                    </Button>
-                    <img
-                        className={`h-20 w-20 ${!ongId && "mr-4 "}`}
-                        src="/images/logo-white.svg"
-                        alt={"Logo acolhe+"}
-                    />
-                    {ongId && (
-                        <Button onClick={() => navigate(`/ong/admin/${ongId}`)}>
-                            <CgProfile className="h-6 w-6"/>
-                        </Button>
-                    )}
-                </div>
-            </header>
-
-            <main className={"p-4 max-w-screen"}>
-                <div className="flex -mt-2">
-                    <Tabs defaultValue="ONGs" className="w-full bg-white">
-                        <TabsList>
-                            <TabsTrigger value="ONGs">ONGs</TabsTrigger>
-                            <TabsTrigger value="Ações e Eventos">Ações e Eventos</TabsTrigger>
-                        </TabsList>
-
-                        <TabsContent value="ONGs">
-                            <SearchAndFilters
-                                searchTerm={searchTerm}
-                                onSearchChange={setSearchTerm}
-                                causePosition={causePosition}
-                                onCauseChange={handleCauseChange}
-                                regionPosition={regionPosition}
-                                onRegionChange={handleRegionChange}
-                                sortPosition={sortPosition}
-                                onSortChange={handleSortChange}
-                            />
-
-                            {ongList?.length === 0 && (
-                                <p className={"text-[#61646B] w-full text-center py-4"}>
-                                    Não há ONGs disponíveis
-                                </p>
-                            )}
-
-                            {filteredOngs?.map((ong: Ong, key) => (
-                                <div
-                                    key={key}
-                                    className={"pt-4"}
-                                    onClick={() => {
-                                        if (localStorage.getItem("ongId") === ong.id) {
-                                            navigate(`/ong/admin/${ong.id}`);
-                                        } else {
-                                            navigate(`/ong/${ong.id}`);
-                                        }
-                                    }}
-                                >
-                                    <CardONG
-                                        image={
-                                            ong.images?.length > 0
-                                                ? `${serverURI}/v1/ong-image/${ong.images[0]}`
-                                                : undefined
-                                        }
-                                        nome={ong.nome}
-                                        endereco={ong.endereco}
-                                        descricao={ong.descricao}
-                                        publicoAlvo={ong.publico_alvo?.map((p) => p.tipo) || []}
-                                        necessidades={ong.necessidades?.map((n) => n.tipo) || []}
-                                    />
-                                </div>
-                            ))}
-                        </TabsContent>
-
-                        <TabsContent value="Ações e Eventos">
-                            <SearchAndFilters
-                                searchTerm={searchTerm}
-                                onSearchChange={setSearchTerm}
-                                causePosition={causePosition}
-                                onCauseChange={handleCauseChange}
-                                regionPosition={regionPosition}
-                                onRegionChange={handleRegionChange}
-                                sortPosition={sortPosition}
-                                onSortChange={handleSortChange}
-                            />
-                            {acoesList?.map((acao: Acao, key) => (
-                                <div
-                                    key={key}
-                                    className={"pt-4"}
-                                    onClick={() => {
-                                        navigate(`/ong/${ongId}/acoes/${acao.id}`);
-                                    }}
-                                >
-                                    <CardAcao
-                                        image={(banners[acao.id] ? serverURI + banners[acao.id] : "")}
-                                        nomeAcao={acao.nome}
-                                        dataAcao={`${acao.dia} de ${acao.mes} de ${acao.ano}`}
-                                        duracao={`${acao.inicio} - ${acao.termino}`}
-                                        endereco={`${acao.endereco}, ${acao.numero} - ${acao.bairro}`}
-                                    />
-                                </div>
-                            ))}
-                        </TabsContent>
-                    </Tabs>
-                </div>
-            </main>
-        </>
+      <div className="min-h-screen bg-gray-50">
+         <Header />
+         <div className="p-4 space-y-4 max-w-3xl mx-auto mt-4">
+            <Skeleton className="h-12 w-full rounded-full" />
+            {[1, 2, 3].map((i) => <Skeleton key={i} className="h-40 w-full rounded-xl" />)}
+         </div>
+      </div>
     );
+  }
+
+  return (
+    <div className="min-h-screen bg-white">
+      <Header />
+
+      <main className="p-4 max-w-3xl mx-auto -mt-4 relative z-10">
+        <Tabs defaultValue="ONGs" className="w-full">
+
+          <TabsList className="w-full flex h-auto p-0 bg-transparent border-b border-gray-200 rounded-none mb-6">
+            
+            <TabsTrigger 
+              value="ONGs" 
+              className="flex-1 rounded-none bg-transparent py-4 text-base font-semibold text-gray-500 border-b-4 border-transparent transition-all hover:text-blue-500 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:shadow-none"
+            >
+              ONGs
+            </TabsTrigger>
+            
+            <TabsTrigger 
+              value="Ações e Eventos" 
+              className="flex-1 rounded-none bg-transparent py-4 text-base font-semibold text-gray-500 border-b-4 border-transparent transition-all hover:text-blue-500 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:shadow-none"
+            >
+              Ações e Eventos
+            </TabsTrigger>
+
+          </TabsList>
+
+          {/* FILTROS */}
+          <div className="rounded-xl mb-4 -mt-2">
+             <SearchAndFilters
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                causePosition={filters.cause}
+                onCauseChange={(v) => handleFilterChange('cause', v)}
+                regionPosition={filters.region}
+                onRegionChange={(v) => handleFilterChange('region', v)}
+                sortPosition={filters.sort}
+                onSortChange={(v) => handleFilterChange('sort', v)}
+             />
+          </div>
+
+          {/* CONTEÚDO TAB: ONGs */}
+          <TabsContent value="ONGs" className="space-y-4 mt-0">
+            {filteredOngs?.length === 0 && (
+              <p className="text-gray-500 text-center py-48">Nenhuma ONG encontrada.</p>
+            )}
+
+            {filteredOngs?.map((ong) => (
+              <div key={ong.id} className="cursor-pointer" onClick={() => navigate(localStorage.getItem("ongId") === ong.id ? `/ong/admin/${ong.id}` : `/ong/${ong.id}`)}>
+                <CardONG
+                  image={ong.images?.length > 0 ? `${serverURI}/v1/ong-image/${ong.images[0]}` : undefined}
+                  nome={ong.nome}
+                  endereco={ong.endereco}
+                  descricao={ong.descricao}
+                  publicoAlvo={ong.publico_alvo?.map((p) => p.tipo) || []}
+                  necessidades={ong.necessidades?.map((n) => n.tipo) || []}
+                />
+              </div>
+            ))}
+          </TabsContent>
+
+          {/* CONTEÚDO TAB: AÇÕES */}
+          <TabsContent value="Ações e Eventos" className="space-y-4 mt-0">
+            {acoesList?.map((acao) => (
+              <div key={acao.id} className="cursor-pointer" onClick={() => navigate(`/ong/${localStorage.getItem("ongId") || 'guest'}/acoes/${acao.id}`)}>
+                <CardAcao
+                  image={acao.bannerUrl || ""} 
+                  nomeAcao={acao.nome}
+                  dataAcao={`${acao.dia} de ${acao.mes} de ${acao.ano}`}
+                  duracao={`${acao.inicio} - ${acao.termino}`}
+                  endereco={`${acao.endereco}, ${acao.numero} - ${acao.bairro}`}
+                />
+              </div>
+            ))}
+          </TabsContent>
+
+        </Tabs>
+      </main>
+    </div>
+  );
 }
