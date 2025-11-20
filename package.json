@@ -1,0 +1,21 @@
+{
+  "name": "acolhemais",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "## Dependências de desenvolvimento - Node v22 - Client MySQL",
+  "main": "index.js",
+  "scripts": {
+    "backend": "npm run dev -w backend",
+    "frontend": "npm run dev -w frontend",
+    "dev": "concurrently \"npm run backend\" \"npm run frontend\""
+  },
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^9.0.1"
+  }
+}

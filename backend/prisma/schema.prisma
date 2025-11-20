@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Ong {
+  id           String   @id @default(uuid())
+  login        String
+  senha        String
+  nome         String
+  descricao    String   @db.Text
+  endereco     String   @db.VarChar(255)
+  cnpj         String?  @db.VarChar(18)
+  data_criacao Int
+  lat          Float
+  lon          Float
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  ongContato     OngContato[]
+  ongImage       OngImage[]
+  ongNecessidade OngNecessidade[]
+  ongPublicoAlvo OngPublicoAlvo[]
+  ongAcao        Acao[]
+
+  @@index([login], map: "fk_ong_login_idx")
+  @@index([nome], map: "fk_ong_nome_idx")
+  @@index([cnpj], map: "fk_ong_cnpj_idx")
+  @@map("ong")
+}
+
+model Acao {
+  id              String  @id @default(uuid())
+  nome            String  @db.VarChar(255)
+  dia             Int
+  mes             String  @db.VarChar(255)
+  ano             Int
+  inicio          String  @db.VarChar(255)
+  descricao       String  @db.Text
+  como_participar String  @db.Text
+  link_contato    String  @db.Text
+  termino         String  @db.VarChar(255)
+  cep             String  @db.VarChar(255)
+  bairro          String  @db.VarChar(255)
+  endereco        String  @db.VarChar(255)
+  numero          String  @db.VarChar(10)
+  complemento     String? @db.VarChar(255)
+
+  ongId String
+  ong   Ong    @relation(fields: [ongId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([nome], map: "fk_acao_nome_idx")
+  @@index([ongId], map: "fk_acao_ong_idx")
+  @@map("acao")
+}
+
+model OngImage {
+  id       String @id @default(uuid())
+  filename String
+  ongId    String @map("ong_id")
+
+  ong Ong @relation(fields: [ongId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([filename], map: "fk_ong_image_filename_idx")
+  @@map("ong_image")
+}
+
+model Necessidade {
+  id   String @id @default(uuid())
+  tipo String @unique
+
+  ong_necessidade OngNecessidade[]
+
+  @@index([tipo], map: "fk_necessidade_tipo_idx")
+  @@map("necessidade")
+}
+
+model OngNecessidade {
+  id            String @id @default(uuid())
+  necessidadeId String @map("necessidade_id")
+  ongId         String @map("ong_id")
+
+  necessidade Necessidade @relation(fields: [necessidadeId], references: [id])
+  ong         Ong         @relation(fields: [ongId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("ong_necessidade")
+}
+
+model PublicoAlvo {
+  id   String @id @default(uuid())
+  tipo String @unique
+
+  ong_publico_alvo OngPublicoAlvo[]
+
+  @@index([tipo], map: "fk_public_alvo_tipo_idx")
+  @@map("publico_alvo")
+}
+model OngPublicoAlvo {
+  id            String @id @default(uuid())
+  publicoAlvoId String @map("publico_alvo_id")
+  ongId         String @map("ong_id")
+
+  publicoAlvo PublicoAlvo @relation(fields: [publicoAlvoId], references: [id])
+  ong         Ong         @relation(fields: [ongId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("ong_publico_alvo")
+}
+
+model OngContato {
+  id            String   @id @default(uuid())
+  tipoContatoId String   @map("tipos_contato_id")
+  ongId         String   @map("ong_id")
+  valor         String
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+
+  tipoContato TipoContato @relation(fields: [tipoContatoId], references: [id])
+  ong         Ong         @relation(fields: [ongId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([valor], map: "fk_ong_contato_valor_idx")
+  @@map("ong_contato")
+}
+
+model TipoContato {
+  id        String   @id @default(uuid())
+  tipo      String   @db.VarChar(45) @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  ongContato OngContato[]
+
+  @@map("tipo_contato")
+}

@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE `acao` MODIFY `mes` VARCHAR(255) NOT NULL,
+    MODIFY `inicio` VARCHAR(255) NOT NULL,
+    MODIFY `termino` VARCHAR(255) NOT NULL,
+    MODIFY `cep` VARCHAR(255) NOT NULL;

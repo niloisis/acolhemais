@@ -1,0 +1,4 @@
+{
+  "exec": "tsx server.ts",
+  "ext": ".ts,.js"
+}
