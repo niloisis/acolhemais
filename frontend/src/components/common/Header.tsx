@@ -29,7 +29,7 @@ export default function Header() {
             onClick={handleLogout}
             // ADICIONEI: [&_svg]:size-10
             // Isso força o ícone a ter 40px (size-10) e ignora o padrão do shadcn
-            className="w-12 h-12 rounded-full text-white hover:bg-blue-700 flex items-center justify-center [&_svg]:size-6"
+            className="w-12 h-12 rounded-full text-white hover:bg-blue-700 flex items-center justify-center [&_svg]:size-7"
           >
             <TbLogout2 />
           </Button>
@@ -38,7 +38,7 @@ export default function Header() {
             variant="ghost"
             onClick={handleLogin}
             // ADICIONEI: [&_svg]:size-10 e ajustei w-12 h-12 para ficar igual ao logout
-            className="w-12 h-12 rounded-full text-white hover:bg-blue-700 flex items-center justify-center [&_svg]:size-6"
+            className="w-12 h-12 rounded-full text-white hover:bg-blue-700 flex items-center justify-center [&_svg]:size-7"
           >
             <TbLogin2 />
           </Button>
@@ -48,7 +48,7 @@ export default function Header() {
         <img
           src="/images/logo-white.svg"
           alt="Logo Acolhe+"
-          className="h-24 mt-0.5 w-auto"
+          className="h-24 mt-1 w-auto"
         />
 
         {/* DIREITA */}
@@ -57,7 +57,7 @@ export default function Header() {
             variant="ghost"
             onClick={() => navigate(`/ong/admin/${ongId}`)}
             // ADICIONEI: [&_svg]:size-10
-            className="w-12 h-12 rounded-full text-white hover:bg-blue-700 flex items-center justify-center [&_svg]:size-10"
+            className="w-12 h-12 rounded-full text-white hover:bg-blue-700 flex items-center justify-center [&_svg]:size-7"
           >
             <CgProfile />
           </Button>

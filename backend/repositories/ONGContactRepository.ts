@@ -1,33 +1,30 @@
 import db from '../db.ts'
 
-type AddContact = {
-    id: string,
+// Removemos o 'id' do type de entrada, pois quem cria o ID é o banco
+type AddContactData = {
     tipo: "EMAIL" | "INSTAGRAM" | "WHATSAPP" | "TELEFONE" | "SITE",
     valor: string,
 }
 
 class ONGContactRepository {
 
-    async addContact(ongId: string, addContact: AddContact) {
-        let tipoContato = await db.tipoContato.findUnique({
-            where: {tipo: addContact.tipo}
-        });
-        if (!tipoContato) {
-            throw new Error("Esse tipo de contato não existe")
-        }
+    async addContact(ongId: string, data: AddContactData) {
+        // A MÁGICA ACONTECE AQUI: connectOrCreate
+        // Isso evita o erro se a tabela TipoContato estiver vazia
         return db.ongContato.create({
             data: {
-                tipoContato: {
-                    connect: {
-                        tipo: addContact.tipo
-                    }
-                },
+                valor: data.valor,
                 ong: {
                     connect: {
                         id: ongId,
                     }
                 },
-                valor: addContact.valor,
+                tipoContato: {
+                    connectOrCreate: {
+                        where: { tipo: data.tipo },
+                        create: { tipo: data.tipo }
+                    }
+                },
             },
             include: {
                 tipoContato: true
@@ -43,6 +40,4 @@ class ONGContactRepository {
 
 }
 
-export default new ONGContactRepository() 
-
-
+export default new ONGContactRepository()

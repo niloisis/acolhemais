@@ -9,6 +9,7 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     credentials: true
 }));
+
 app.use(express.raw({type: 'application/octet-stream', limit: '10mb'}));
 app.use(express.json())
 app.use(router)

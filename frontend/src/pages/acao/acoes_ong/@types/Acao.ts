@@ -15,4 +15,5 @@ export type Acao = {
     como_participar: string,
     ongId: string,
     link_contato?: string,
+    logo?:string,
 }

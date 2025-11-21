@@ -1,52 +1,38 @@
-import {Button} from "@/components/ui/button.tsx";
-import {Avatar, AvatarImage} from "@/components/ui/avatar.tsx";
-import {useNavigate, useParams} from "react-router-dom";
-import {useQuery} from "react-query";
-import {api, serverURI} from "@/utils/api.ts";
-import {Ong} from "@/pages/ong/@types/Ong.ts";
-import {Skeleton} from "@/components/ui/skeleton.tsx";
-import {useEffect, useState} from "react";
-import {ChevronLeftIcon} from '@radix-ui/react-icons';
-import {CardAcao} from "@/components/ui/cardAcao.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar.tsx";
+import { useNavigate, useParams } from "react-router-dom";
+import { useQuery } from "react-query";
+import { api, serverURI } from "@/utils/api.ts";
+import { Ong } from "@/pages/ong/@types/Ong.ts";
+import { Skeleton } from "@/components/ui/skeleton.tsx";
+import { useEffect, useState } from "react";
+import { FaArrowLeft } from "react-icons/fa";
+import { CardAcao } from "@/components/ui/cardAcao.tsx";
 import CreateAcaoModal from "@/pages/acao/acoes_ong/acao-register-modal.tsx";
-import {FiPlusSquare} from "react-icons/fi";
-import {Acao} from "@/pages/acao/acoes_ong/@types/Acao.ts";
-
+import { FiPlusSquare } from "react-icons/fi";
+import { Acao } from "@/pages/acao/acoes_ong/@types/Acao.ts";
 
 export default function AcoesOng() {
-
-    const [logoURL, setLogoURL] = useState<string>('');
-    const {id} = useParams();
+    const { id } = useParams();
     const navigate = useNavigate();
+    
+    // Cache Buster para Logo
+    const [logoTimestamp] = useState(Date.now());
 
-    const ongQuery = useQuery(
-        {
-            queryKey: ["ong_profile", id],
-            queryFn: async (): Promise<Ong> => {
-                const {data} = await api.get<Ong>(`/v1/ong/${id}`);
-                try {
-                    await api.get(`/v1/ong/${id}/logo`);
-                    setLogoURL(`/v1/ong/${id}/logo`);
-                } catch (e) {
-                    setLogoURL("");
-                }
-                return data;
-            }
-        }
-    );
+    // 1. Busca ONG
+    const { data: ongData, isLoading: loadingOng } = useQuery(["ong_profile", id], async () => {
+        const res = await api.get<Ong>(`/v1/ong/${id}`);
+        return res.data;
+    });
+
+    // 2. Busca Ações
+    const { data: acoesData, isLoading: loadingAcoes } = useQuery(["ong_acoes", id], async () => {
+        const res = await api.get<Acao[]>(`/v1/ong/${id}/acoes`);
+        return res.data;
+    });
+
+    // 3. Busca Banners
     const [banners, setBanners] = useState<{ [key: string]: string }>({});
-
-
-    const acoesQuery = useQuery(
-        {
-            queryKey: ["ong_acoes", id],
-            queryFn: async (): Promise<Acao[]> => {
-                const {data} = await api.get<Acao[]>(`/v1/ong/${id}/acoes`);
-                return data;
-            }
-        }
-    );
-    const {data: acoesData} = acoesQuery
     useEffect(() => {
         const fetchBanners = async () => {
             const bannersMap: { [key: string]: string } = {};
@@ -62,101 +48,82 @@ export default function AcoesOng() {
             );
             setBanners(bannersMap);
         };
-
-        if (acoesData?.length) {
-            fetchBanners();
-        }
+        if (acoesData?.length) fetchBanners();
     }, [acoesData]);
-    if (ongQuery.isLoading) {
-        return (
-            <>
-                <div className="mt-24 flex w-full flex-col justify-center items-center gap-4">
-                    <Skeleton className="h-24 w-24 rounded-full"/>
-                    <Skeleton className="h-6 w-36 "/>
-                    <Skeleton className="h-4 w-28 "/>
-                    <div className="mt-8 flex gap-4">
-                        <Skeleton className="h-8 w-24 rounded-full"/>
-                        <Skeleton className="h-8 w-24 rounded-full"/>
-                        <Skeleton className="h-8 w-24 rounded-full"/>
-                    </div>
-                </div>
-                <div className="py-4 px-4 mt-6">
-                    <Skeleton className="w-full h-36 rounded-xl"/>
-                    <div className="flex gap-4 py-4">
-                        <Skeleton className="w-32 h-24 rounded-xl"/>
-                        <Skeleton className="w-32 h-24 rounded-xl"/>
-                        <Skeleton className="w-32 h-24 rounded-xl"/>
-                    </div>
-                    <Skeleton className="w-36 h-12 rounded-full"/>
-                </div>
-                <div className="mt-10 flex flex-col content-start items-start gap-4 px-4">
-                    <Skeleton className="h-6 w-36 "/>
-                    <Skeleton className="h-4 w-28 "/>
-                    <Skeleton className="h-4 w-28 "/>
-                </div>
-            </>
-        )
-    }
+
+    if (loadingOng || loadingAcoes) return <ProfileSkeleton />;
+
+    const backgroundCurve = (
+        <svg viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+            <ellipse cx="250" cy="-60" rx="410" ry="410" fill="#2F49F3" />
+        </svg>
+    );
+
+    const isOwner = localStorage.getItem("ongId") === id;
 
     return (
-        <main>
-            <header className="bg-[url(/images/circle.svg)] w-full h-52 bg-no-repeat bg-contain">
-                <div className="flex justify-between items-center p-2">
-                    <Button
-                        onClick={() => navigate(localStorage.getItem("ongId") === id ? `/ong/admin/${id}` : `/ong/${id}`)}>
-                        <ChevronLeftIcon className="h-6 w-6"/>
+        <div className="min-h-screen bg-white -mt-2 pb-20 overflow-x-hidden">
+            
+            {/* --- HEADER AZUL + CURVA --- */}
+            <div className="relative w-full pb-10">
+                <div className="flex -mt-3 justify-between items-center p-6 relative z-20 text-white">
+                    <Button variant="ghost" onClick={() => navigate(-1)} className="text-white hover:bg-blue-700">
+                        <FaArrowLeft className="w-2 h-12" />
                     </Button>
-                    <img className="h-20 w-20" src="/images/logo-white.svg" onClick={() => navigate(`/`)}
-                         alt={"Logo acolhe+"}/>
-                    {
-                        localStorage.getItem("ongId") === id ? (
-                            <CreateAcaoModal trigger={
-                                <FiPlusSquare className="h-6 w-6"/>
-                            }/>
-                        ) : (
-                            <Button className="invisible">
-                                <ChevronLeftIcon className="h-6 w-6"/>
-                            </Button>
-                        )
-                    }
-
-                </div>
-
-                <div className="flex items-center justify-center w-full">
-                    <input
-                        className={"hidden"}
-                        type="file"
+                    
+                    <img 
+                        src="/images/logo-white.svg" 
+                        alt="Logo Acolhe+" 
+                        className="h-24 w-auto object-contain cursor-pointer absolute left-1/2 -translate-x-1/2"
+                        onClick={() => navigate('/')}
                     />
-                    <Avatar className="w-24 h-24 mt-2 border-2 border-[#2F49F3]">
-                        {
-                            logoURL ? (
-                                <AvatarImage src={serverURI + `/v1/ong/${id}/logo`}/>
-                            ) : (
-                                <AvatarImage src={"/images/invalidLogo.png"}/>
-                            )
-                        }
+
+                    {isOwner ? (
+                        <CreateAcaoModal trigger={
+                            <div className="text-white hover:bg-blue-700 p-2 rounded-md cursor-pointer transition flex items-center justify-center">
+                                <FiPlusSquare className="w-2 h-12" />
+                            </div>
+                        }/>
+                    ) : (
+                        <div className="w-10"></div>
+                    )}
+                </div>
+                
+                <div className="absolute -top-8 left-0 w-full h-[40vh] z-0 pointer-events-none">
+                    {backgroundCurve}
+                </div>
+            </div>
+
+            {/* --- CONTEÚDO PRINCIPAL --- */}
+            <div className="flex flex-col items-center relative z-20 px-6 -mt-10">
+                
+                {/* Avatar (Imagem de perfil da ONG) */}
+                <div className="relative">
+                    <Avatar className="w-28 h-28 border-[5px] border-white shadow-lg bg-white">
+                        <AvatarImage 
+                            src={`${serverURI}/v1/ong/${id}/logo?t=${logoTimestamp}`}
+                            className="object-cover"
+                        />
+                        <AvatarFallback className="bg-gray-100 text-gray-400 text-2xl font-bold">
+                            {ongData?.nome?.substring(0, 2).toUpperCase() || "ONG"}
+                        </AvatarFallback>
                     </Avatar>
                 </div>
-            </header>
-            <main>
-                <header>
-                    <div className="mt-3 flex flex-col items-center justify-center w-full">
-                        <h1 className="text-[#19191B] text-2xl">
-                            Ações e Eventos
-                        </h1>
-                        <p className="text-[#61646B]">
-                            {ongQuery.data?.nome}
-                        </p>
-                    </div>
-                </header>
-                <div className="flex flex-col gap-4 pb-20 p-4">
-                    {
-                        acoesData && acoesData.length === 0 && (
-                            <p className={"text-[#61646B] w-full text-center py-4"}>Não há ações no momento</p>
-                        )
-                    }
+
+                {/* Títulos (Ordem alterada conforme solicitado) */}
+                <h1 className="mt-4 text-2xl font-bold text-gray-900 text-center">{ongData?.nome || "Nome da ONG"}</h1>
+                <p className="text-gray-500 text-m mt-1 font-medium text-center">Ações e Eventos</p>
+
+                {/* Lista de Cards */}
+                <div className="w-full mt-8 flex flex-col gap-4 pb-20">
+                    {acoesData && acoesData.length === 0 && (
+                        <div className="text-center py-10 flex flex-col items-center">
+                            <p className="text-gray-400 text-sm">Não há ações cadastradas no momento.</p>
+                        </div>
+                    )}
+
                     {acoesData?.map(acao => (
-                        <div key={acao.id} onClick={() => navigate(`/ong/${id}/acoes/${acao.id}`)}>
+                        <div key={acao.id} onClick={() => navigate(`/ong/${id}/acoes/${acao.id}`)} className="cursor-pointer transition-transform hover:scale-[1.01]">
                             <CardAcao
                                 image={(banners[acao.id] ? serverURI + banners[acao.id] : "")}
                                 nomeAcao={acao.nome}
@@ -167,7 +134,21 @@ export default function AcoesOng() {
                         </div>
                     ))}
                 </div>
-            </main>
-        </main>
-    )
+            </div>
+        </div>
+    );
 }
+
+const ProfileSkeleton = () => (
+    <div className="min-h-screen bg-white">
+        <Skeleton className="h-48 w-full rounded-b-[40px]" />
+        <div className="flex flex-col items-center -mt-16 px-6 relative z-10">
+            <Skeleton className="h-28 w-28 rounded-full border-4 border-white" />
+            <Skeleton className="h-8 w-40 mt-4 rounded-lg" />
+            <div className="w-full mt-8 space-y-4">
+                <Skeleton className="h-32 w-full rounded-2xl" />
+                <Skeleton className="h-32 w-full rounded-2xl" />
+            </div>
+        </div>
+    </div>
+);

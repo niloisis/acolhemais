@@ -243,4 +243,20 @@ export default class ONGController {
             return res.status(500).json(basicError(e));
         }
     }
+
+    static async delete(req: Request, res: Response): Promise<any> {
+        const { id } = req.params;
+        try {
+            // Opcional: Verificar se quem está deletando é o dono da conta
+            // (Já é garantido pelo middleware e pelo fato de saber o ID, mas é bom reforçar)
+            
+            await ONGRepository.delete(id);
+            
+            // Sucesso, sem conteúdo (204)
+            return res.status(204).end();
+        } catch (error) {
+            console.error(error);
+            return res.status(500).json(basicError("Erro ao excluir a conta da ONG. Tente novamente."));
+        }
+    }
 }
