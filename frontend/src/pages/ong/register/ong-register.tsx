@@ -49,8 +49,8 @@ const ongRegisterSchema = z.object({
 
 type OngRegisterSchema = z.infer<typeof ongRegisterSchema>;
 
-const publicoAlvoOptions = ["Crianças", "Adolescentes", "Adultos", "Idosos", "Homens", "Mulheres", "Animais", "População negra", "População Indígena", "LGBTQIA+", "Pessoas com Deficiência"];
-const necessidadesOptions = ["Assistência Social", "Educação", "Saúde", "Saúde Mental", "Meio Ambiente", "Combate à Pobreza", "Cultura e Arte", "Igualdade de Gênero", "Direitos Humanos", "Justiça Social", "Esporte", "Comunidade", "Emergências", "Emprego"];
+const publicoAlvoOptions = ["Crianças", "Adolescentes", "Adultos", "Idosos", "Homens", "Mulheres", "LGBTQIA+", "Animais", "População negra", "População Indígena", "Pessoas com Deficiência"];
+const necessidadesOptions = ["Assistência Social", "Educação", "Saúde", "Saúde Mental", "Meio Ambiente", "Combate à Pobreza", "Cultura e Arte", "Igualdade de Gênero", "Direitos Humanos", "Justiça Social", "Esporte e Lazer", "Comunidade", "Emergências", "Emprego"];
 
 export default function OngRegister() {
     const navigate = useNavigate();
