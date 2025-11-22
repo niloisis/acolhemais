@@ -182,8 +182,6 @@ export default function OngAdminProfile() {
 
                 {/* Nome */}
                 <h1 className="mt-4 text-2xl font-bold text-gray-900 text-center">{ongData.nome}</h1>
-                
-                {/* MUDANÇA: Removi a localização daqui de cima */}
 
                 {/* Tags */}
                 <div className="flex flex-wrap justify-center gap-2 mt-4 max-w-md">
@@ -206,18 +204,21 @@ export default function OngAdminProfile() {
                     )}
                 </div>
 
-                {/* MUDANÇA: Nova seção de Data e Localização */}
-                <div className="w-full mt-6 flex flex-col gap-3">
+                <div className="w-full mt-6 flex flex-col gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                    
                     {/* Data */}
-                    <div className="flex items-center gap-3 text-gray-600 text-sm font-medium">
+                    <div className="flex items-center gap-3 text-gray-700 text-sm">
                         <FiCalendar className="text-blue-600 w-5 h-5" />
-                        <span>{formatDate(ongData.data_criacao)}</span>
+                        <span className="font-medium">{formatDate(ongData.data_criacao)}</span>
                     </div>
 
-                    {/* Localização (Movida para cá com ícone azul) */}
-                    <div className="flex items-center gap-3 text-gray-600 text-sm font-medium">
-                        <MdLocationOn className="text-blue-600 w-5 h-5 flex-shrink-0" />
-                        <span className="break-words">{ongData.endereco || "Endereço não informado"}</span>
+                    {/* Endereço Completo */}
+                    <div className="flex items-start gap-3 text-gray-700 text-sm">
+                        <MdLocationOn className="text-blue-600 w-5 h-5 flex-shrink-0 mt-0.5" />
+                        {/* break-words permite que o endereço quebre linha se for longo */}
+                        <span className="font-medium break-words leading-snug">
+                            {ongData.endereco || "Endereço não cadastrado"}
+                        </span>
                     </div>
                 </div>
 

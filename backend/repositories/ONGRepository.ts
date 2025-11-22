@@ -9,35 +9,34 @@ class ONGRepository {
         const uniquePublico = [...new Set(createONG.publico_alvo || [])];
         const uniqueNecessidades = [...new Set(createONG.necessidades || [])];
 
-        // 2. Conversão da Data (String "YYYY-MM-DD" para Inteiro YYYY)
-        // Se vier string, pega o ano. Se vier número, mantém.
+        // 2. Conversão da Data
         let anoCriacao: number;
         if (typeof createONG.data_criacao === 'string') {
             const date = new Date(createONG.data_criacao);
             anoCriacao = date.getFullYear();
-            // Fallback: se a data for inválida, usa o ano atual
             if (isNaN(anoCriacao)) anoCriacao = new Date().getFullYear();
         } else {
             anoCriacao = createONG.data_criacao;
         }
 
-        // 3. Criação da ONG (Removida a validação prévia que travava o cadastro)
+        // 3. Criação da ONG
         return db.ong.create({
             data: {
                 login: createONG.login,
                 senha: createONG.senha,
-                descricao: "Não há descrição", // Valor padrão
+                descricao: "Não há descrição",
                 nome: createONG.nome,
                 cnpj: createONG.cnpj,
-                // Se o front não mandar cep, enviamos uma string vazia ou tratamos aqui
-                endereco: createONG.cep || "Sem endereço", 
-                data_criacao: anoCriacao, // Aqui vai o Inteiro
                 
-                // Mapeia o array [lat, lon] para os campos do banco
+                // --- CORREÇÃO 1: Prioriza o endereço por extenso, se não tiver, usa o CEP ---
+                endereco: createONG.endereco  || createONG.cep || "Endereço não informado",
+                
+                data_criacao: anoCriacao,
+                
+                // Mapeia o array [lat, lon]
                 lat: createONG.localizacao ? createONG.localizacao[0] : 0,
                 lon: createONG.localizacao ? createONG.localizacao[1] : 0,
                 
-                // Relacionamento: Se a necessidade existe, conecta. Se não, cria.
                 ongNecessidade: {
                     create: uniqueNecessidades.map(n => ({
                         necessidade: {
@@ -48,8 +47,6 @@ class ONGRepository {
                         }
                     }))
                 },
-                
-                // Relacionamento: Se o público alvo existe, conecta. Se não, cria.
                 ongPublicoAlvo: {
                     create: uniquePublico.map(p => ({
                         publicoAlvo: {
@@ -62,30 +59,19 @@ class ONGRepository {
                 },
             },
             include: {
-                ongNecessidade: {
-                    include: { necessidade: true },
-                },
-                ongPublicoAlvo: {
-                    include: { publicoAlvo: true },
-                },
+                ongNecessidade: { include: { necessidade: true } },
+                ongPublicoAlvo: { include: { publicoAlvo: true } },
             },
         });
     }
 
-    // --- O RESTANTE DO ARQUIVO PERMANECE IGUAL ---
-    
     async addImage(ongId: string, filename: string) {
         return db.ongImage.create({
-                data: {
-                    ong: {
-                        connect: {
-                            id: ongId
-                        }
-                    },
-                    filename: filename
-                }
+            data: {
+                ong: { connect: { id: ongId } },
+                filename: filename
             }
-        )
+        })
     }
 
     async getImage(id: string): Promise<any> {
@@ -93,15 +79,17 @@ class ONGRepository {
     }
 
     async update(id: string, ongUpdateDto: ONGUpdateDto): Promise<any> {
+        // 1. Limpeza de duplicatas (Mantido)
         ongUpdateDto.added_publico_alvo = [...new Set(ongUpdateDto.added_publico_alvo)];
         ongUpdateDto.added_necessidades = [...new Set(ongUpdateDto.added_necessidades)];
         
-        await Promise.all(ongUpdateDto.removed_necessidades.map(removedNecessidadeId =>
-            db.ongNecessidade.delete({ where: { id: removedNecessidadeId } })
+        // 2. Operações de Relacionamento (Mantido)
+        await Promise.all(ongUpdateDto.removed_necessidades.map(removedId =>
+            db.ongNecessidade.delete({ where: { id: removedId } })
         ));
         
-        await Promise.all(ongUpdateDto.removed_publico_alvo.map(removedPublicoAlvoId =>
-            db.ongPublicoAlvo.delete({ where: { id: removedPublicoAlvoId } })
+        await Promise.all(ongUpdateDto.removed_publico_alvo.map(removedId =>
+            db.ongPublicoAlvo.delete({ where: { id: removedId } })
         ));
         
         await Promise.all(ongUpdateDto.added_necessidades.map(necessidade =>
@@ -132,9 +120,19 @@ class ONGRepository {
             })
         ));
         
+        // --- CORREÇÃO ROBUSTA: Monta o objeto de dados dinamicamente ---
+        const dataToUpdate: any = {
+            nome: ongUpdateDto.nome
+        };
+
+        // Só adiciona o endereço se ele foi enviado e não for undefined
+        if (ongUpdateDto.endereco !== undefined) {
+            dataToUpdate.endereco = ongUpdateDto.endereco;
+        }
+
         return db.ong.update({
             where: {id},
-            data: {nome: ongUpdateDto.nome}
+            data: dataToUpdate
         });
     }
 
@@ -170,10 +168,10 @@ class ONGRepository {
                 ongPublicoAlvo: { include: { publicoAlvo: true } },
                 ongContato: { include: { tipoContato: true } },
                 ongImage: true
+                
             }
         });
     }
-
 
     async existsByLogin(login: string): Promise<Boolean> {
         const exists = await db.ong.findFirst({
@@ -184,50 +182,41 @@ class ONGRepository {
 
     async findAll() {
         return db.ong.findMany({
-                include: {
-                    ongNecessidade: { include: { necessidade: true } },
-                    ongPublicoAlvo: { include: { publicoAlvo: true } },
-                    ongContato: { include: { tipoContato: true } },
-                    ongImage: true
-                },
-            }
-        );
+            include: {
+                ongNecessidade: { include: { necessidade: true } },
+                ongPublicoAlvo: { include: { publicoAlvo: true } },
+                ongContato: { include: { tipoContato: true } },
+                ongImage: true
+            },
+        });
     }
 
-    // Adicione isso dentro da classe ONGRepository, antes do último }
-
-    // 1. Salvar Logo (Atualiza o campo logo da ONG)
+    // Métodos adicionais (Logo, Contato, Delete)
     async updateLogo(id: string, filename: string) {
         return db.ong.update({
             where: { id: id },
-            data: { logo: filename } // Certifique-se que seu banco tem a coluna 'logo' na tabela ONG
+            data: { logo: filename }
         });
     }
 
-    // 2. Adicionar Contato
     async addContact(id: string, contato: { tipo: string, valor: string }) {
-        // Primeiro buscamos o Tipo de Contato (ex: EMAIL, WHATSAPP)
-        // Se não tiver a tabela de tipos populada, isso pode dar erro.
-        // Assumindo que você tem uma tabela 'TipoContato'
-        const tipo = await db.tipoContato.findFirst({
-            where: { tipo: contato.tipo }
-        });
-
-        if (!tipo) {
-            throw new Error("Tipo de contato inválido");
-        }
-
+        // Usa connectOrCreate para evitar erro se o tipo não existir
         return db.ongContato.create({
             data: {
                 valor: contato.valor,
                 ong: { connect: { id: id } },
-                tipoContato: { connect: { id: tipo.id } }
-            }
+                tipoContato: {
+                    connectOrCreate: {
+                        where: { tipo: contato.tipo },
+                        create: { tipo: contato.tipo }
+                    }
+                }
+            },
+            include: { tipoContato: true }
         });
     }
 
-    // 3. Remover Contato
-    async deleteContact(contactId: string) {
+    async removeContact(contactId: string) {
         return db.ongContato.delete({
             where: { id: contactId }
         });
@@ -240,13 +229,12 @@ class ONGRepository {
     }
 
     async delete(id: string) {
-        // O Prisma geralmente cuida do 'Cascade Delete' se configurado no schema.
-        // Se der erro de Foreign Key, teremos que deletar as relações antes.
         return db.ong.delete({
             where: { id }
         });
     }
 
+    
 }
 
 export default new ONGRepository()

@@ -66,9 +66,9 @@ export default function AcoesOng() {
             
             {/* --- HEADER AZUL + CURVA --- */}
             <div className="relative w-full pb-10">
-                <div className="flex -mt-3 justify-between items-center p-6 relative z-20 text-white">
-                    <Button variant="ghost" onClick={() => navigate(-1)} className="text-white hover:bg-blue-700">
-                        <FaArrowLeft className="w-2 h-12" />
+                <div className="flex -mt-0.5 justify-between items-center p-6 relative z-20 text-white">
+                    <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="text-white hover:bg-blue-700">
+                        <FaArrowLeft className="w-8 h-8" /> 
                     </Button>
                     
                     <img 
@@ -80,8 +80,8 @@ export default function AcoesOng() {
 
                     {isOwner ? (
                         <CreateAcaoModal trigger={
-                            <div className="text-white hover:bg-blue-700 p-2 rounded-md cursor-pointer transition flex items-center justify-center">
-                                <FiPlusSquare className="w-2 h-12" />
+                            <div className="text-white hover:bg-blue-700 rounded-md cursor-pointer transition flex items-center justify-center">
+                                <FiPlusSquare className="w-6 h-6" />
                             </div>
                         }/>
                     ) : (
@@ -95,7 +95,7 @@ export default function AcoesOng() {
             </div>
 
             {/* --- CONTEÚDO PRINCIPAL --- */}
-            <div className="flex flex-col items-center relative z-20 px-6 -mt-10">
+            <div className="flex flex-col items-center relative z-20 px-6">
                 
                 {/* Avatar (Imagem de perfil da ONG) */}
                 <div className="relative">

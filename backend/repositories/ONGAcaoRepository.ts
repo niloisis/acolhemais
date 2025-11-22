@@ -1,7 +1,7 @@
 import db from "../db";
 import ONGAcaoCreateRequest from "./dto/ONGAcaoCreateDto";
 
-class ONGRepository {
+class AcaoRepository {
 
     async save(ongAcaoCreateRequest: ONGAcaoCreateRequest) {
         return db.acao.create({
@@ -22,7 +22,7 @@ class ONGRepository {
                 link_contato: "",
                 ong: {
                     connect: {
-                        id: ongAcaoCreateRequest.ondId
+                        id: ongAcaoCreateRequest.ongId, // <-- corrigido
                     },
                 },
             },
@@ -34,54 +34,37 @@ class ONGRepository {
 
     async findAllByOng(ongId) {
         return db.acao.findMany({
-            where: {
-                ongId: ongId,
-            }, include: {
-                ong: true
-            }
+            where: { ongId },
+            include: { ong: true }
         });
     }
 
     async findAll() {
         return db.acao.findMany({
-            include: {
-                ong: true
-            }
+            include: { ong: true }
         });
     }
 
     async findById(id) {
         return db.acao.findFirstOrThrow({
-            where: {
-                id: id,
-            }, include: {
-                ong: true
-            }
+            where: { id },
+            include: { ong: true }
         });
     }
 
-    async update(id: string, {descricao, como_participar, link_contato}: {
-        descricao: string,
-        como_participar: string,
-        link_contato: string
-    }) {
+    async update(id, { descricao, como_participar, link_contato }) {
         return db.acao.update({
-            where: {id},
-            data: {
-                descricao,
-                como_participar,
-                link_contato
-            }
+            where: { id },
+            data: { descricao, como_participar, link_contato },
+            include: { ong: true } // <-- garante que o frontend sempre receba ong correta
         });
     }
 
-    async delete(id: string) {
+    async delete(id) {
         return db.acao.delete({
-            where: {id}
+            where: { id }
         });
     }
 }
 
-export default new ONGRepository() 
-
-
+export default new AcaoRepository();

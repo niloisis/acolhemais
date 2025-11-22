@@ -13,55 +13,112 @@ export default class ONGController {
 
     static async create(req: Request, res: Response): Promise<any> {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
         if (!emailRegex.test(req.body.login)) {
-            return res.status(400).json(basicError("O campo 'login' deve ser um email válido"));
+            return res.status(400).json(
+                basicError("O campo 'login' deve ser um email válido")
+            );
         }
+
+        const createONG: CreateONG = req.body;
+
+        if (!Array.isArray(createONG.localizacao) || createONG.localizacao.length !== 2) {
+            return res.status(400).json(
+                basicError("O campo 'localizacao' deve ser um array [latitude, longitude]")
+            );
+        }
+
+        const [latitude, longitude] = createONG.localizacao;
+
         try {
-            const createONG: CreateONG = req.body
-            const existsLogin = await ONGRepository.existsByLogin(createONG.login)
+            const existsLogin = await ONGRepository.existsByLogin(createONG.login);
+
             if (existsLogin) {
-                return res.status(400).json(basicError("Este email já esta em uso"))
+                return res.status(400).json(basicError("Este email já está em uso"));
             }
-            try {
-                const reverseGeoResponse = await fetch(
-                    `https://nominatim.openstreetmap.org/reverse?lat=${createONG.localizacao[0]}&lon=${createONG.localizacao[1]}&format=jsonv2`
-                );
-                const reverseGeoData = await reverseGeoResponse.json();
-                createONG.endereco = `${reverseGeoData.address.suburb}, ${reverseGeoData.address.city} - ${reverseGeoData.address.state}` || "Não localizada"
-            } catch (ee) {
-                console.error(ee);
-                createONG.endereco = "Não localizada"
-            }
-
-            createONG.senha = await bcrypt.hash(createONG.senha, 10)
-            const savedOng = await ONGRepository.save(createONG)
-            try {
-                const token = jwt.sign({id: savedOng.id}, process.env.SECRET_KEY as string, {expiresIn: "30d"});
-
-                res.cookie("AccessToken", token, {
-                    httpOnly: true,
-                    secure: process.env.NODE_ENV === "production",
-                    sameSite: "strict",
-                    maxAge: 30 * 24 * 60 * 60 * 1000,
-                });
-                res.cookie("ongId", savedOng.id, {
-                    httpOnly: false,
-                    secure: process.env.NODE_ENV === "production",
-                    sameSite: "strict",
-                    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 dias
-                });
-            } catch (error) {
-                console.log(error);
-            }
-
-            return res.status(201).json(
-                ONGMapper.toCompleteResponse(savedOng)
-            )
-        } catch (error) {
-            console.log(error)
-            return res.status(500).json(basicError("Erro ao tentar salvar ONG, tente novamente mais tarde"));
+        } catch (err) {
+            console.error(err);
+            return res.status(500).json(basicError("Erro ao verificar login"));
         }
+
+        try {
+            const reverseURL =
+                `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=jsonv2`;
+
+            const reverseGeoResponse = await fetch(reverseURL, {
+                headers: {
+                    "User-Agent": "AcolheMais/1.0 (contato@acolhemais.com)"
+                }
+            });
+
+            const data = await reverseGeoResponse.json();
+            const addr = data.address || {};
+
+            const bairro =
+                addr.suburb ||
+                addr.neighbourhood ||
+                addr.village ||
+                "Bairro não identificado";
+
+            const cidade =
+                addr.city ||
+                addr.town ||
+                addr.municipality ||
+                addr.county ||
+                "Cidade não identificada";
+
+            const estado = addr.state || "Estado não identificado";
+
+            createONG.endereco = `${bairro}, ${cidade} - ${estado}`;
+        } catch (err) {
+            console.error(err);
+            createONG.endereco = "Não localizada";
+        }
+
+        try {
+            createONG.senha = await bcrypt.hash(createONG.senha, 10);
+        } catch (err) {
+            console.error(err);
+            return res.status(500).json(basicError("Erro ao processar senha"));
+        }
+
+        let savedOng;
+        try {
+            savedOng = await ONGRepository.save(createONG);
+        } catch (err) {
+            console.error(err);
+            return res.status(500).json(basicError("Erro ao salvar ONG"));
+        }
+
+        try {
+            const token = jwt.sign(
+                { id: savedOng.id },
+                process.env.SECRET_KEY as string,
+                { expiresIn: "30d" }
+            );
+
+            res.cookie("AccessToken", token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                sameSite: "strict",
+                maxAge: 30 * 24 * 60 * 60 * 1000,
+            });
+
+            res.cookie("ongId", savedOng.id, {
+                httpOnly: false,
+                secure: process.env.NODE_ENV === "production",
+                sameSite: "strict",
+                maxAge: 30 * 24 * 60 * 60 * 1000,
+            });
+        } catch (err) {
+            console.error("Erro ao gerar cookies:", err);
+        }
+
+        return res.status(201).json(
+            ONGMapper.toCompleteResponse(savedOng)
+        );
     }
+
 
     static async updateDescription(req: Request, res: Response): Promise<any> {
         try {
@@ -247,12 +304,7 @@ export default class ONGController {
     static async delete(req: Request, res: Response): Promise<any> {
         const { id } = req.params;
         try {
-            // Opcional: Verificar se quem está deletando é o dono da conta
-            // (Já é garantido pelo middleware e pelo fato de saber o ID, mas é bom reforçar)
-            
             await ONGRepository.delete(id);
-            
-            // Sucesso, sem conteúdo (204)
             return res.status(204).end();
         } catch (error) {
             console.error(error);

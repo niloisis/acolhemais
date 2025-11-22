@@ -8,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "@/components/ui/input.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { FaArrowLeft } from "react-icons/fa";
-import { TbEdit, TbTrash } from "react-icons/tb"; // Adicionei o ícone de lixo
+import { TbEdit, TbTrash } from "react-icons/tb";
 import { Label } from "@/components/ui/label.tsx";
 import { toast } from "react-toastify";
 import {
@@ -19,12 +19,14 @@ import { FiEye, FiEyeOff } from "react-icons/fi";
 // --- SCHEMAS ---
 const ongUpdateSchema = z.object({
     nome: z.string().min(2, { message: "Nome inválido" }),
+    endereco: z.string().optional(), // Campo de endereço
     added_publico_alvo: z.array(z.string()),
     removed_publico_alvo: z.array(z.string()),
     added_necessidades: z.array(z.string()),
     removed_necessidades: z.array(z.string()),
 });
 
+// --- OPÇÕES ---
 const publicoAlvoOptions = [
     "Crianças", "Adolescentes", "Adultos", "Idosos", "Homens", 
     "Mulheres", "Animais", "População negra", "População Indígena", 
@@ -55,7 +57,7 @@ export default function OngProfileUpdate() {
     // Modais
     const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
     const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
-    const [isDeleteOpen, setIsDeleteOpen] = useState(false); // Novo modal de exclusão
+    const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
     // 1. Buscar Dados
     const { data: ongData, isLoading } = useQuery(["ong_profile", id], async () => {
@@ -68,6 +70,7 @@ export default function OngProfileUpdate() {
         resolver: zodResolver(ongUpdateSchema),
         defaultValues: {
             nome: "",
+            endereco: "",
             added_publico_alvo: [],
             removed_publico_alvo: [],
             added_necessidades: [],
@@ -79,12 +82,13 @@ export default function OngProfileUpdate() {
     useEffect(() => {
         if (ongData) {
             setValue("nome", ongData.nome);
+            setValue("endereco", ongData.endereco || ""); // AQUI: Garante que puxa o endereço, não o login
             setSelectedPublico(ongData.publico_alvo.map((p: any) => p.tipo));
             setSelectedNecessidades(ongData.necessidades.map((n: any) => n.tipo));
         }
     }, [ongData, setValue]);
 
-    // Lógica de Alteração (Dirty State)
+    // Lógica de Alteração
     const tagsChanged = useMemo(() => {
         if (!ongData) return false;
         const originalPublico = ongData.publico_alvo.map((p: any) => p.tipo).sort().join(',');
@@ -160,12 +164,11 @@ export default function OngProfileUpdate() {
         }
     };
 
-    // --- FUNÇÃO DE EXCLUIR CONTA ---
     const handleDeleteAccount = async () => {
         try {
             await api.delete(`/v1/ong/${id}`);
             toast.success("Conta excluída com sucesso.");
-            localStorage.clear(); // Limpa sessão
+            localStorage.clear();
             navigate("/login");
         } catch (e) {
             toast.error("Erro ao excluir conta.");
@@ -180,7 +183,7 @@ export default function OngProfileUpdate() {
         <div className="min-h-screen bg-white flex flex-col">
             
             {/* HEADER AZUL */}
-            <header className="w-full h-20 bg-blue-600 flex items-center px-4 justify-between shadow-md sticky top-0 z-20">
+            <header className="w-full h-12 bg-blue-600 flex items-center px-4 justify-between shadow-md sticky top-0 z-20">
                 <Button variant="ghost" size="icon" onClick={handleBackClick} className="text-white hover:bg-blue-700">
                     <FaArrowLeft className="w-5 h-5" />
                 </Button>
@@ -196,13 +199,32 @@ export default function OngProfileUpdate() {
                     <div className="border-b border-gray-100 pb-2">
                         <h3 className="text-gray-900 font-semibold text-lg">Dados da Conta</h3>
                     </div>
+                    
+                    {/* Campo NOME */}
                     <div className="space-y-1.5">
                         <Label className="text-gray-500 font-normal ml-1 text-sm">Nome da ONG</Label>
-                        <Input {...register("nome")} className={inputClass} />
+                        <Input {...register("nome")} className={inputClass} autoComplete="off" />
                     </div>
+
+                    {/* Campo ENDEREÇO (Corrigido) */}
+                    <div className="space-y-1.5">
+                        <Label className="text-gray-500 font-normal ml-1 text-sm">Endereço</Label>
+                        <Input 
+                            {...register("endereco")} 
+                            className={inputClass} 
+                            placeholder="Rua, Bairro, Cidade..." 
+                            autoComplete="off" // Evita que o navegador preencha com email
+                        />
+                    </div>
+
+                    {/* Campo LOGIN (Email) - Desabilitado e separado */}
                     <div className="space-y-1.5">
                         <Label className="text-gray-500 font-normal ml-1 text-sm">Login (Email)</Label>
-                        <Input value={ongData.login} disabled className={`${inputClass} bg-gray-50 text-gray-400`} />
+                        <Input 
+                            value={ongData.login} 
+                            disabled 
+                            className={`${inputClass} bg-gray-50 text-gray-400 cursor-not-allowed`} 
+                        />
                     </div>
                 </section>
 
@@ -252,7 +274,7 @@ export default function OngProfileUpdate() {
                     </div>
                 </section>
 
-                {/* 4. Opções de Conta (Senha e Excluir) */}
+                {/* 4. Opções de Conta */}
                 <section className="flex flex-col gap-3">
                     {/* Alterar Senha */}
                     <Dialog>
@@ -268,35 +290,19 @@ export default function OngProfileUpdate() {
                                 <div className="space-y-1">
                                     <Label>Nova Senha</Label>
                                     <div className="relative">
-                                        <Input 
-                                            type={viewPassword ? "text" : "password"} 
-                                            className={inputClass} 
-                                            value={newPassword}
-                                            onChange={(e) => setNewPassword(e.target.value)}
-                                        />
-                                        <button onClick={() => setViewPassword(!viewPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                                            {viewPassword ? <FiEyeOff /> : <FiEye />}
-                                        </button>
+                                        <Input type={viewPassword ? "text" : "password"} className={inputClass} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+                                        <button onClick={() => setViewPassword(!viewPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">{viewPassword ? <FiEyeOff /> : <FiEye />}</button>
                                     </div>
                                 </div>
                                 <div className="space-y-1">
                                     <Label>Confirmar Senha</Label>
                                     <div className="relative">
-                                        <Input 
-                                            type={viewConfirmPassword ? "text" : "password"} 
-                                            className={inputClass} 
-                                            value={confirmPassword}
-                                            onChange={(e) => setConfirmPassword(e.target.value)}
-                                        />
-                                        <button onClick={() => setViewConfirmPassword(!viewConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                                            {viewConfirmPassword ? <FiEyeOff /> : <FiEye />}
-                                        </button>
+                                        <Input type={viewConfirmPassword ? "text" : "password"} className={inputClass} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+                                        <button onClick={() => setViewConfirmPassword(!viewConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">{viewConfirmPassword ? <FiEyeOff /> : <FiEye />}</button>
                                     </div>
                                 </div>
                             </div>
-                            <DialogFooter>
-                                <Button onClick={handleChangePassword} className="w-full rounded-full bg-blue-600 hover:bg-blue-700 font-semibold" disabled={!newPassword || newPassword !== confirmPassword || newPassword.length < 8}>Salvar Nova Senha</Button>
-                            </DialogFooter>
+                            <DialogFooter><Button onClick={handleChangePassword} className="w-full rounded-full bg-blue-600 hover:bg-blue-700 font-semibold" disabled={!newPassword || newPassword !== confirmPassword || newPassword.length < 8}>Salvar Nova Senha</Button></DialogFooter>
                         </DialogContent>
                     </Dialog>
 
@@ -311,9 +317,7 @@ export default function OngProfileUpdate() {
                         <DialogContent className="bg-white rounded-2xl w-[90%] max-w-sm fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%]">
                             <DialogHeader>
                                 <DialogTitle className="text-red-600">Excluir Conta?</DialogTitle>
-                                <DialogDescription>
-                                    Tem certeza que deseja excluir permanentemente sua conta e todos os dados? Essa ação não pode ser desfeita.
-                                </DialogDescription>
+                                <DialogDescription>Tem certeza que deseja excluir permanentemente sua conta e todos os dados? Essa ação não pode ser desfeita.</DialogDescription>
                             </DialogHeader>
                             <DialogFooter className="gap-2 sm:gap-0">
                                 <Button variant="outline" onClick={() => setIsDeleteOpen(false)} className="rounded-full flex-1">Cancelar</Button>
@@ -327,15 +331,12 @@ export default function OngProfileUpdate() {
 
             {/* RODAPÉ FIXO */}
             <div className="p-6 bg-white border-t border-gray-100 sticky bottom-0 z-30 shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.05)]">
-                <Button 
-                    onClick={() => setIsSaveDialogOpen(true)} 
-                    className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-semibold text-base shadow-lg shadow-blue-200 transition-transform active:scale-95"
-                >
+                <Button onClick={() => setIsSaveDialogOpen(true)} className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-semibold text-base shadow-lg shadow-blue-200 transition-transform active:scale-95">
                     Salvar Alterações
                 </Button>
             </div>
 
-            {/* MODAL CONFIRMAÇÃO SALVAR */}
+            {/* MODAL SALVAR */}
             <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
                 <DialogContent className="bg-white rounded-2xl w-[90%] max-w-sm fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%]">
                     <DialogHeader>
@@ -349,7 +350,7 @@ export default function OngProfileUpdate() {
                 </DialogContent>
             </Dialog>
 
-            {/* MODAL CONFIRMAÇÃO SAIR */}
+            {/* MODAL SAIR */}
             <Dialog open={isExitDialogOpen} onOpenChange={setIsExitDialogOpen}>
                 <DialogContent className="bg-white rounded-2xl w-[90%] max-w-sm fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%]">
                     <DialogHeader>
