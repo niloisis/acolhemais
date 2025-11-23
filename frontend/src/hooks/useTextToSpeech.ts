@@ -1,49 +1,38 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 
-export function useTextToSpeech() {
-  const synth = window.speechSynthesis;
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+export const useTextToSpeech = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
+  const [supported, setSupported] = useState(true);
 
   useEffect(() => {
-    return () => synth.cancel(); // interrompe ao desmontar o componente
-  }, [synth]);
+    if (typeof window !== "undefined" && !window.speechSynthesis) {
+      setSupported(false);
+    }
+  }, []);
 
-  const speak = (text: string) => {
-    if (synth.speaking) synth.cancel();
+  const speak = useCallback((text: string) => {
+    if (!supported) return;
+
+    // Se já estiver falando, cancela o atual para começar o novo (ou pausa se preferir)
+    window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "pt-BR";
-    utterance.rate = 1;
-    utterance.pitch = 1;
+    utterance.lang = "pt-BR"; // Define português
+    utterance.rate = 1; // Velocidade normal
+    utterance.pitch = 1; // Tom normal
+
+    utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
     utterance.onerror = () => setIsSpeaking(false);
 
-    utteranceRef.current = utterance;
-    synth.speak(utterance);
-    setIsSpeaking(true);
-  };
+    window.speechSynthesis.speak(utterance);
+  }, [supported]);
 
-  const pause = () => {
-    if (synth.speaking && !synth.paused) {
-      synth.pause();
-      setIsPaused(true);
-    }
-  };
-
-  const resume = () => {
-    if (synth.paused) {
-      synth.resume();
-      setIsPaused(false);
-    }
-  };
-
-  const stop = () => {
-    synth.cancel();
+  const stop = useCallback(() => {
+    if (!supported) return;
+    window.speechSynthesis.cancel();
     setIsSpeaking(false);
-    setIsPaused(false);
-  };
+  }, [supported]);
 
-  return { speak, pause, resume, stop, isSpeaking, isPaused };
-}
+  return { speak, stop, isSpeaking, supported };
+};

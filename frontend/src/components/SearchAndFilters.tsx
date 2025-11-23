@@ -21,7 +21,7 @@ const causasOptions = [
 
 const bairrosRecife = [
     "Boa Viagem", "Santo Amaro", "Derby", "Espinheiro", "Graças", 
-    "Casa Forte", "Várzea", "Madalena", "Torre", "Casa Amarela", 
+    "Casa Forte", "Várzea", "Madalena", "Torre", "Casa Amarela", "Bomba do Hemetério",
     "Encruzilhada", "Rosarinho", "Jaqueira", "Cordeiro", "Iputinga", "Recife Antigo"
 ].sort();
 
@@ -77,7 +77,7 @@ export const SearchAndFilters = ({
                     variant="outline" 
                     className={`h-9 rounded-full text-xs font-medium border-dashed ${selectedCauses.length > 0 ? "bg-blue-50 border-blue-200 text-blue-700" : "border-gray-300 text-gray-600"}`}
                 >
-                    <Heart className={`w-3 h-3 mr-2 ${selectedCauses.length > 0 ? "fill-blue-700" : ""}`} />
+                    <Heart className={`w-3 h-3 mr-1 text-red-500 ${selectedCauses.length > 0 ? "fill-red-700" : ""}`} />
                     Causas
                     {selectedCauses.length > 0 && (
                         <span className="ml-1 bg-blue-200 text-blue-800 text-[10px] px-1.5 py-0.5 rounded-full">
@@ -111,7 +111,7 @@ export const SearchAndFilters = ({
                     variant="outline" 
                     className={`h-9 rounded-full text-xs font-medium border-dashed ${selectedRegions.length > 0 ? "bg-blue-50 border-blue-200 text-blue-700" : "border-gray-300 text-gray-600"}`}
                 >
-                    <MapPin className={`w-3 h-3 mr-2 ${selectedRegions.length > 0 ? "fill-blue-700" : ""}`} />
+                    <MapPin className={`w-3 h-3 mr-1 text-blue-600 ${selectedRegions.length > 0 ? "fill-blue-700" : ""}`} />
                     Localização
                     {selectedRegions.length > 0 && (
                         <span className="ml-1 bg-blue-200 text-blue-800 text-[10px] px-1.5 py-0.5 rounded-full">

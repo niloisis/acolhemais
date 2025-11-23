@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -20,10 +19,10 @@ import { api } from "@/utils/api.ts";
 import { toast } from "react-toastify";
 import { AiOutlineLoading3Quarters } from "react-icons/ai";
 
+// Schema Simplificado (Sem 'lembrar')
 const loginSchema = z.object({
   login: z.string().email({ message: "Informe um email válido" }),
   senha: z.string().min(1, { message: "Informe sua senha" }),
-  lembrar: z.boolean().optional(),
 });
 
 type LoginSchema = z.infer<typeof loginSchema>;
@@ -53,40 +52,38 @@ export default function LoginApp() {
   const onSubmit = async (data: LoginSchema) => {
     setIsLoading(true);
     try {
+      // Envia apenas login e senha
       const response = await api.post("/login", {
         login: data.login,
-        senha: data.senha,
-        lembrar: data.lembrar
+        senha: data.senha
       });
       
-      const { token, ongId } = response.data;
-      
-      // Salva Token
-      await localStorage.setItem("token", token);
-      
-      // Lógica de Redirecionamento
-      if (ongId) {
-          await localStorage.setItem("ongId", ongId);
-          toast.success("Bem-vindo de volta!");
-          // CORREÇÃO: Redireciona para o Admin Profile
-          navigate(`/ong/admin/${ongId}`); 
+      if (response.status === 200 && response.data) {
+          const { token, ongId } = response.data;
+          
+          await localStorage.setItem("token", token);
+          
+          if(ongId) {
+              await localStorage.setItem("ongId", ongId);
+              toast.success("Bem-vindo de volta!");
+              navigate(`/ong/admin/${ongId}`);
+          } else {
+              localStorage.removeItem("ongId");
+              toast.success("Login realizado!");
+              navigate("/");
+          }
       } else {
-          localStorage.removeItem("ongId");
-          toast.success("Login realizado!");
-          navigate("/"); // Usuário comum vai para Home
+          throw new Error("Resposta inválida");
       }
       
     } catch (error: any) {
-      console.error("Erro login:", error);
+      console.error("Erro no login:", error);
       
-      // Tratamento de erro visual
       if (error.response?.status === 401 || error.response?.status === 403) {
           setError("senha", { message: "Email ou senha incorretos" });
           toast.error("Credenciais inválidas");
-      } else if (error.code === "ERR_NETWORK") {
-          toast.error("Sem conexão com o servidor");
       } else {
-          toast.error("Ocorreu um erro inesperado");
+          toast.error("Erro de conexão. Tente novamente.");
       }
     } finally {
         setIsLoading(false);
@@ -96,10 +93,12 @@ export default function LoginApp() {
   return (
     <div className="min-h-screen bg-gray-50 relative overflow-hidden flex flex-col">
       
+      {/* Fundo Azul */}
       <div className="absolute top-0 left-0 w-full h-[45vh] z-0 pointer-events-none">
         {backgroundCurve}
       </div>
 
+      {/* CABEÇALHO */}
       <div className="relative z-10 -mt-12 px-6 pt-8 flex flex-col w-full">
         <div className="relative flex items-center justify-center w-full mb-4">
             <button 
@@ -127,10 +126,12 @@ export default function LoginApp() {
         </div>
       </div>
 
+      {/* Formulário */}
       <div className="relative z-10 flex-1 px-6 flex flex-col w-full max-w-md mx-auto">
         
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3 bg-transparent">
           
+          {/* Input Email */}
           <div className="flex flex-col gap-1.5">
             <Label className="text-gray-500 ml-1 text-base">Email</Label>
             <Input
@@ -143,6 +144,7 @@ export default function LoginApp() {
             )}
           </div>
 
+          {/* Input Senha */}
           <div className="flex flex-col gap-1.5">
             <Label className="text-gray-500 ml-1 text-base">Senha</Label>
             <div className="relative">
@@ -165,30 +167,24 @@ export default function LoginApp() {
             )}
           </div>
 
-          <div className="flex justify-between items-center mt-1 mb-2">
-             <div className="flex items-center space-x-2">
-                <Checkbox id="lembrar" {...register("lembrar")} className="rounded-[4px]" />
-                <label
-                  htmlFor="lembrar"
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-gray-500"
-                >
-                  Lembrar de mim
-                </label>
-             </div>
+          {/* Link Esqueci a Senha (Apenas) */}
+          <div className="flex justify-end mt-1 mb-2">
              <button type="button" className="text-sm text-gray-400 hover:text-gray-600">
                 Esqueci a senha
              </button>
           </div>
 
+          {/* Botão Continuar */}
           <Button 
             className="mt-2 w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-full text-base shadow-lg shadow-blue-200 mb-10" 
             type="submit"
-            disabled={isLoading} 
+            disabled={isLoading}
           >
             {isLoading ? <AiOutlineLoading3Quarters className="animate-spin" /> : "Continuar"}
           </Button>
         </form>
 
+        {/* Rodapé com POP-UP */}
         <div className="flex flex-row items-center justify-center mt-auto mb-8 gap-1 text-sm">
             <span className="text-gray-900 font-semibold">Gostaria de se cadastrar?</span>
             

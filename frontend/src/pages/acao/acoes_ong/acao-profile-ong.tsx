@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input.tsx";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { ReadAloudBtn } from "@/components/ui/ReadAloudBtn"; // 1. Importar
 import {
     Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger
 } from "@/components/ui/dialog.tsx";
@@ -45,7 +46,7 @@ export default function AcaoProfileOng() {
     const queryClient = useQueryClient();
     const bannerInputRef = useRef<HTMLInputElement | null>(null);
 
-// 1. Busca Ação (Primeiro buscamos a ação para saber de quem ela é)
+    // 1. Busca Ação (Primeiro buscamos a ação para saber de quem ela é)
     const acaoQuery = useQuery({
         queryKey: ["ong_acao", acaoId],
         queryFn: async (): Promise<Acao> => {
@@ -153,9 +154,31 @@ export default function AcaoProfileOng() {
             navigate(`/ong/${ownerOngId}`);
         }
     };
+
+    // --- 2. PREPARAR O TEXTO PARA LEITURA ---
+    const textoParaLer = `
+        Evento: ${acaoData?.nome}. 
+        Realizado pela ONG: ${ongQuery.data?.nome || "Parceira"}. 
+        Sobre o evento: ${acaoData?.descricao || "Sem descrição"}. 
+        Data: ${acaoData?.dia} de ${acaoData?.mes} de ${acaoData?.ano}. 
+        Horário: das ${acaoData?.inicio?.replace(':', ' e ')} às ${acaoData?.termino?.replace(':', ' e ')}. 
+        Local: ${acaoData?.endereco}, número ${acaoData?.numero}, bairro ${acaoData?.bairro}. 
+        Como participar: ${acaoData?.como_participar || "Entre em contato"}.
+    `;
+
     return (
         <div className="min-h-screen bg-white pb-20 overflow-x-hidden">
             
+            {/* --- 3. BOTÃO FLUTUANTE DE LEITURA (FIXED) --- */}
+            <div className="fixed bottom-10 right-6 z-50">
+                <div className="bg-white p-1 rounded-full shadow-xl border-2 border-blue-100">
+                    <ReadAloudBtn 
+                        textToRead={textoParaLer} 
+                        label="Ouvir detalhes do evento" 
+                    />
+                </div>
+            </div>
+
             {/* HEADER AZUL */}
             <div className="relative w-full pb-20">
                 <div className="flex -mt-2 justify-between items-center p-6 relative z-20 text-white">
@@ -196,7 +219,7 @@ export default function AcaoProfileOng() {
                     className="relative mb-2 cursor-pointer hover:opacity-90 transition-opacity"
                     onClick={handleNavigateToOng}
                 >
-                    <Avatar className="w-28 h-28 border-[5px] border-white shadow-lg bg-white">
+                    <Avatar className="w-28 h-28 border-[4px] border-white shadow-lg bg-white">
                         <AvatarImage src={logoURL ? serverURI + logoURL : "/images/invalidLogo.png"} className="object-cover" />
                         <AvatarFallback>ONG</AvatarFallback>
                     </Avatar>
@@ -239,7 +262,6 @@ export default function AcaoProfileOng() {
                         )}
                     </div>
                 </div>
-
 
                 {/* SOBRE O EVENTO */}
                 <div className="w-full mt-8 text-left">
@@ -289,7 +311,7 @@ export default function AcaoProfileOng() {
                     )}
                 </div>
 
-                {/* BOTÃO PRINCIPAL */}
+                {/* BOTÃO PRINCIPAL / EXCLUIR */}
                 <div className="w-full mt-10 mb-10">
                     {isEditMode ? (
                         <div className="flex flex-col gap-4">

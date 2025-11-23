@@ -16,22 +16,18 @@ export default function AcoesOng() {
     const { id } = useParams();
     const navigate = useNavigate();
     
-    // Cache Buster para Logo
     const [logoTimestamp] = useState(Date.now());
 
-    // 1. Busca ONG
     const { data: ongData, isLoading: loadingOng } = useQuery(["ong_profile", id], async () => {
         const res = await api.get<Ong>(`/v1/ong/${id}`);
         return res.data;
     });
 
-    // 2. Busca Ações
     const { data: acoesData, isLoading: loadingAcoes } = useQuery(["ong_acoes", id], async () => {
         const res = await api.get<Acao[]>(`/v1/ong/${id}/acoes`);
         return res.data;
     });
 
-    // 3. Busca Banners
     const [banners, setBanners] = useState<{ [key: string]: string }>({});
     useEffect(() => {
         const fetchBanners = async () => {
@@ -62,17 +58,16 @@ export default function AcoesOng() {
     const isOwner = localStorage.getItem("ongId") === id;
 
     return (
-        <div className="min-h-screen bg-white -mt-2 pb-20 overflow-x-hidden">
+        <div className="min-h-screen bg-white pb-20 overflow-x-hidden">
             
-            {/* --- HEADER AZUL + CURVA --- */}
-            <div className="relative w-full pb-10">
-                <div className="flex -mt-0.5 justify-between items-center p-6 relative z-20 text-white">
+            <div className="relative w-full pb-20">
+                <div className="flex -mt-3 justify-between items-center p-6 relative z-20 text-white">
                     <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="text-white hover:bg-blue-700">
-                        <FaArrowLeft className="w-8 h-8" /> 
+                        <FaArrowLeft className="w-8 h-8" />
                     </Button>
                     
                     <img 
-                        src="/images/logo-white.svg" 
+                        src={ongData?.logo ? `${serverURI}/v1/ong/${id}/logo?t=${logoTimestamp}` : "/images/logo-white.svg"} 
                         alt="Logo Acolhe+" 
                         className="h-24 w-auto object-contain cursor-pointer absolute left-1/2 -translate-x-1/2"
                         onClick={() => navigate('/')}
@@ -80,8 +75,8 @@ export default function AcoesOng() {
 
                     {isOwner ? (
                         <CreateAcaoModal trigger={
-                            <div className="text-white hover:bg-blue-700 rounded-md cursor-pointer transition flex items-center justify-center">
-                                <FiPlusSquare className="w-6 h-6" />
+                            <div className="text-white hover:bg-blue-700 p-2 rounded-md cursor-pointer transition flex items-center justify-center">
+                                <FiPlusSquare className="w-8 h-8" />
                             </div>
                         }/>
                     ) : (
@@ -94,8 +89,7 @@ export default function AcoesOng() {
                 </div>
             </div>
 
-            {/* --- CONTEÚDO PRINCIPAL --- */}
-            <div className="flex flex-col items-center relative z-20 px-6">
+            <div className="flex flex-col items-center relative z-20 px-6 -mt-10">
                 
                 {/* Avatar (Imagem de perfil da ONG) */}
                 <div className="relative">
@@ -110,11 +104,9 @@ export default function AcoesOng() {
                     </Avatar>
                 </div>
 
-                {/* Títulos (Ordem alterada conforme solicitado) */}
                 <h1 className="mt-4 text-2xl font-bold text-gray-900 text-center">{ongData?.nome || "Nome da ONG"}</h1>
-                <p className="text-gray-500 text-m mt-1 font-medium text-center">Ações e Eventos</p>
+                <p className="text-gray-500 text-sm mt-1 font-medium text-center">Ações e Eventos</p>
 
-                {/* Lista de Cards */}
                 <div className="w-full mt-8 flex flex-col gap-4 pb-20">
                     {acoesData && acoesData.length === 0 && (
                         <div className="text-center py-10 flex flex-col items-center">
@@ -123,10 +115,16 @@ export default function AcoesOng() {
                     )}
 
                     {acoesData?.map(acao => (
-                        <div key={acao.id} onClick={() => navigate(`/ong/${id}/acoes/${acao.id}`)} className="cursor-pointer transition-transform hover:scale-[1.01]">
+                        <div 
+                            key={acao.id} 
+                            onClick={() => navigate(`/ong/${id}/acoes/${acao.id}`)} 
+                            className="cursor-pointer transition-transform hover:scale-[1.01]"
+                        >
                             <CardAcao
                                 image={(banners[acao.id] ? serverURI + banners[acao.id] : "")}
                                 nomeAcao={acao.nome}
+                                // --- CORREÇÃO AQUI: Passando o nome da ONG explicitamente ---
+                                nomeOng={ongData?.nome} 
                                 dataAcao={`${acao.dia} de ${acao.mes} de ${acao.ano}`}
                                 duracao={`${acao.inicio} - ${acao.termino}`}
                                 endereco={`${acao.endereco}, ${acao.numero} - ${acao.bairro}`}
