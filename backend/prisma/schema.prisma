@@ -13,7 +13,13 @@ model Ong {
   senha        String
   nome         String
   descricao    String   @db.Text
+  cep          String   @db.VarChar(255)
+
+  bairroId     String
+  bairro       Bairro  @relation(fields: [bairroId], references: [id])
+
   endereco     String   @db.VarChar(255)
+  numero       String   @db.VarChar(10)
   cnpj         String?  @db.VarChar(18)
   data_criacao Int
   lat          Float
@@ -45,7 +51,10 @@ model Acao {
   link_contato    String  @db.Text
   termino         String  @db.VarChar(255)
   cep             String  @db.VarChar(255)
-  bairro          String  @db.VarChar(255)
+  
+  bairroId     String?
+  bairro       Bairro?  @relation(fields: [bairroId], references: [id])
+  
   endereco        String  @db.VarChar(255)
   numero          String  @db.VarChar(10)
   complemento     String? @db.VarChar(255)
@@ -102,6 +111,7 @@ model PublicoAlvo {
   @@index([tipo], map: "fk_public_alvo_tipo_idx")
   @@map("publico_alvo")
 }
+
 model OngPublicoAlvo {
   id            String @id @default(uuid())
   publicoAlvoId String @map("publico_alvo_id")
@@ -137,4 +147,14 @@ model TipoContato {
   ongContato OngContato[]
 
   @@map("tipo_contato")
+}
+
+model Bairro {
+  id        String   @id @default(uuid())
+  nome      String   @unique
+  cidade    String   @default("Recife")
+  estado    String   @default("PE")
+  createdAt DateTime @default(now())
+
+  @@map("bairros")
 }

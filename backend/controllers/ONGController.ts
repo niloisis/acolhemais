@@ -189,6 +189,25 @@ export default class ONGController {
         )
     }
 
+    /* static async findAll(req: Request, res: Response): Promise<any> {
+        try {
+            // Pega os parâmetros da Query String (URL)
+            const { location, category } = req.query;
+
+            const ongs = await ONGRepository.findAll({
+                location: location as string, // Cast para string
+                category: category as string
+            });
+
+            return res.status(200).json(
+                ONGMapper.toCompleteResponseList(ongs)
+            );
+        } catch (error) {
+            console.log(error);
+            return res.status(500).json(basicError("Erro ao buscar ONGs"));
+        }
+    } */
+
     static async findById(req: Request, res: Response): Promise<any> {
         const {id} = req.params;
         try {

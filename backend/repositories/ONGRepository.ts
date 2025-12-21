@@ -191,6 +191,43 @@ class ONGRepository {
         });
     }
 
+    /* async findAll(filters?: { location?: string, category?: string }) {
+        
+        // Monta a cláusula WHERE dinamicamente
+        const whereClause: any = {};
+
+        // 1. Filtro de Localização (Busca parcial no endereço: Rua, Bairro ou Cidade)
+        if (filters?.location) {
+            whereClause.endereco = {
+                contains: filters.location,
+                mode: 'insensitive' // Ignora maiúsculas/minúsculas
+            };
+        }
+
+        // 2. Filtro de Categoria/Necessidade (Busca dentro do relacionamento)
+        if (filters?.category && filters.category !== "Todas") {
+            whereClause.ongNecessidade = {
+                some: {
+                    necessidade: {
+                        tipo: {
+                            equals: filters.category // Tem que ser exatamente a tag (ex: "Saúde")
+                        }
+                    }
+                }
+            };
+        }
+
+        return db.ong.findMany({
+            where: whereClause, // Aplica o filtro
+            include: {
+                ongNecessidade: { include: { necessidade: true } },
+                ongPublicoAlvo: { include: { publicoAlvo: true } },
+                ongContato: { include: { tipoContato: true } },
+                ongImage: true
+            },
+        });
+    } */
+
     // Métodos adicionais (Logo, Contato, Delete)
     async updateLogo(id: string, filename: string) {
         return db.ong.update({
