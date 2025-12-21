@@ -11,7 +11,7 @@ export default class ONGAcaoController {
         try {
             const createAcao: ONGAcaoCreateRequest = req.body
             const {id} = req.params
-            createAcao.ondId = id
+            createAcao.ongId = id
             return res.status(201).json(
                 ONGMapper.toCompleteAcaoResponse(
                     await ONGAcaoRepository.save(createAcao),
