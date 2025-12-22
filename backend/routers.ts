@@ -39,5 +39,6 @@ router.get('/v1/ong-image/:id', ONGController.getImage);
 
 router.get('/v1/necessidades', LookupController.getNecessidades);
 router.get('/v1/publico-alvo', LookupController.getPublicoAlvo);
+router.get('/v1/bairros', LookupController.getBairros);
 
 export default router;

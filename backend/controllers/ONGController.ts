@@ -181,32 +181,39 @@ export default class ONGController {
         }
     }
 
-    static async findAll(_: Request, res: Response): Promise<any> {
+    /*static async findAll(_: Request, res: Response): Promise<any> {
         return res.status(200).json(
             ONGMapper.toCompleteResponseList(
                 await ONGRepository.findAll()
             )
         )
-    }
+    }*/
 
-    /* static async findAll(req: Request, res: Response): Promise<any> {
+    static async findAll(req: Request, res: Response): Promise<any> {
         try {
-            // Pega os parâmetros da Query String (URL)
-            const { location, category } = req.query;
+            const { location, category, target } = req.query;
+
+            // Função auxiliar para converter string separada por vírgula em array
+            const toArray = (param: any) => {
+                if (!param) return [];
+                if (Array.isArray(param)) return param.map(String);
+                return String(param).split(',');
+            };
 
             const ongs = await ONGRepository.findAll({
-                location: location as string, // Cast para string
-                category: category as string
+                location: location as string,
+                category: toArray(category), // Converte "Saúde,Educação" -> ["Saúde", "Educação"]
+                target: toArray(target)
             });
 
             return res.status(200).json(
                 ONGMapper.toCompleteResponseList(ongs)
             );
         } catch (error) {
-            console.log(error);
+            console.error("Erro no Controller findAll:", error);
             return res.status(500).json(basicError("Erro ao buscar ONGs"));
         }
-    } */
+    }
 
     static async findById(req: Request, res: Response): Promise<any> {
         const {id} = req.params;

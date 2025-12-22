@@ -1,4 +1,4 @@
-import db from '../db.ts'
+import db from '../db.ts';
 import CreateONG from "./dto/ONGCreateDto";
 import ONGUpdateDto from "./dto/ONGUpdateDto";
 
@@ -182,7 +182,7 @@ class ONGRepository {
         return exists !== null;
     }
 
-    async findAll() {
+    /*async findAll() {
         return db.ong.findMany({
             include: {
                 ongNecessidade: { include: { necessidade: true } },
@@ -191,44 +191,60 @@ class ONGRepository {
                 ongImage: true
             },
         });
-    }
+    }*/
 
-    /* async findAll(filters?: { location?: string, category?: string }) {
+    // Agora aceita location, category (Causa) e target (Público Alvo)
+    // Agora aceita arrays de string ou undefined
+    async findAll(filters?: { location?: string, category?: string[], target?: string[] }) {
         
-        // Monta a cláusula WHERE dinamicamente
         const whereClause: any = {};
 
-        // 1. Filtro de Localização (Busca parcial no endereço: Rua, Bairro ou Cidade)
+        // 1. Localização (Busca parcial)
         if (filters?.location) {
             whereClause.endereco = {
                 contains: filters.location,
-                mode: 'insensitive' // Ignora maiúsculas/minúsculas
             };
         }
 
-        // 2. Filtro de Categoria/Necessidade (Busca dentro do relacionamento)
-        if (filters?.category && filters.category !== "Todas") {
+        // 2. Causa (Necessidade) - Lógica "IN" (OR)
+        // Se a ONG tiver ALGUMA das necessidades da lista, ela aparece.
+        if (filters?.category && filters.category.length > 0) {
             whereClause.ongNecessidade = {
                 some: {
                     necessidade: {
-                        tipo: {
-                            equals: filters.category // Tem que ser exatamente a tag (ex: "Saúde")
-                        }
+                        tipo: { in: filters.category } // <--- MUDANÇA AQUI
                     }
                 }
             };
         }
 
-        return db.ong.findMany({
-            where: whereClause, // Aplica o filtro
-            include: {
-                ongNecessidade: { include: { necessidade: true } },
-                ongPublicoAlvo: { include: { publicoAlvo: true } },
-                ongContato: { include: { tipoContato: true } },
-                ongImage: true
-            },
-        });
-    } */
+        // 3. Público Alvo - Lógica "IN" (OR)
+        if (filters?.target && filters.target.length > 0) {
+            whereClause.ongPublicoAlvo = {
+                some: {
+                    publicoAlvo: {
+                        tipo: { in: filters.target } // <--- MUDANÇA AQUI
+                    }
+                }
+            };
+        }
+
+        try {
+            return await db.ong.findMany({
+                where: whereClause,
+                include: {
+                    ongNecessidade: { include: { necessidade: true } },
+                    ongPublicoAlvo: { include: { publicoAlvo: true } },
+                    ongContato: { include: { tipoContato: true } },
+                    ongImage: true,
+                    bairro: true
+                },
+            });
+        } catch (error) {
+            console.error(error);
+            throw error;
+        }
+    }
 
     // Métodos adicionais (Logo, Contato, Delete)
     async updateLogo(id: string, filename: string) {

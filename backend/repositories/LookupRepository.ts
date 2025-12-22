@@ -8,6 +8,10 @@ class LookupRepository {
     async findAllPublicoAlvo() {
         return db.publicoAlvo.findMany({ orderBy: { tipo: 'asc' } });
     }
+
+    async findAllBairros() {
+        return db.bairro.findMany({ orderBy: { nome: 'asc' } });
+    }
 }
 
 export default new LookupRepository();
