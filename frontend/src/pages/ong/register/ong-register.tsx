@@ -8,7 +8,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label.tsx";
 import { Coordinates, Map } from "@/components/ui/map/map.tsx";
-import { FiCheck, FiSearch, FiEye, FiEyeOff } from "react-icons/fi";
+import { FiEye, FiEyeOff, FiCheck, FiSearch } from "react-icons/fi";
 import { useMutation } from "react-query";
 import { api } from "@/utils/api.ts";
 import { AiOutlineLoading3Quarters } from "react-icons/ai";
@@ -31,7 +31,7 @@ const ongRegisterSchema = z.object({
     data_criacao: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Data inválida" }),
     cnpj: z.string().optional().refine((cnpj) => !cnpj || isValidCNPJ(cnpj), { message: "CNPJ inválido" }),
     
-    // Campos de Endereço
+    // Campos de Endereço Detalhados
     cep: z.string().min(8, "CEP obrigatório"),
     logradouro: z.string().min(1, "Rua obrigatória"),
     bairro: z.string().min(1, "Bairro obrigatório"),
@@ -49,15 +49,37 @@ const ongRegisterSchema = z.object({
 
 type OngRegisterSchema = z.infer<typeof ongRegisterSchema>;
 
-const publicoAlvoOptions = ["Crianças", "Adolescentes", "Adultos", "Idosos", "Homens", "Mulheres", "LGBTQIA+", "Animais", "População negra", "População Indígena", "Pessoas com Deficiência"];
-const necessidadesOptions = ["Assistência Social", "Educação", "Saúde", "Saúde Mental", "Meio Ambiente", "Combate à Pobreza", "Cultura e Arte", "Igualdade de Gênero", "Direitos Humanos", "Justiça Social", "Esporte e Lazer", "Comunidade", "Emergências", "Emprego"];
-
 export default function OngRegister() {
     const navigate = useNavigate();
+    
+    const [publicoAlvoOptions, setPublicoAlvoOptions] = useState<string[]>([]);
+    const [necessidadesOptions, setNecessidadesOptions] = useState<string[]>([]);
+
     const [currentStep, setCurrentStep] = useState(0);
     const [viewPassword, setViewPassword] = useState(false);
     const [viewConfirmPassword, setViewConfirmPassword] = useState(false);
     const [registerFinished, setRegisterFinished] = useState<{ finished: boolean; id: string }>({ finished: false, id: "" });
+
+
+    useEffect(() => {
+        const fetchOptions = async () => {
+            try {
+                // Faz as duas requisições em paralelo
+                const [resPublico, resNecessidades] = await Promise.all([
+                    api.get("/v1/publico-alvo"),
+                    api.get("/v1/necessidades")
+                ]);
+
+                // O Backend retorna objetos [{ id: "...", tipo: "Saúde" }], 
+                // mas seu componente espera strings ["Saúde"], então fazemos o map:
+                setPublicoAlvoOptions(resPublico.data.map((item: any) => item.tipo));
+                setNecessidadesOptions(resNecessidades.data.map((item: any) => item.tipo));
+            } catch (error) {
+                console.error("Erro ao carregar opções:", error);
+            }
+        };
+        fetchOptions();
+    }, []);
 
     const {
         register,
@@ -90,12 +112,14 @@ export default function OngRegister() {
         },
     });
 
-    // --- CORREÇÃO DO ERRO: Hooks useWatch declarados aqui ---
+    // Hooks useWatch (Monitoram os valores em tempo real)
     const cep = useWatch({ control, name: "cep" });
-    // Essas duas linhas abaixo estavam faltando ou com erro no seu código
     const publicoAlvo = useWatch({ control, name: "publico_alvo" });
     const necessidades = useWatch({ control, name: "necessidades" });
-    const localizacao = useWatch({ control, name: "localizacao" });
+    
+    // CORREÇÃO CRÍTICA: Adicionado fallback (||) para garantir que nunca seja undefined
+    // Isso evita o erro de tela branca no Step 3
+    const localizacao = useWatch({ control, name: "localizacao" }) || [-8.063169, -34.871139];
 
     // 1. Busca Endereço pelo CEP
     useEffect(() => {
@@ -121,22 +145,33 @@ export default function OngRegister() {
         fetchAddress();
     }, [cep, setValue]);
 
-    // 2. Atualiza inputs ao mover o mapa
+    // 2. Atualiza inputs (Rua, Bairro e CEP) ao mover o mapa
     const handleChangeCoordinates = async (newCoordinates: Coordinates) => {
+        // Atualiza a coordenada no form
         setValue("localizacao", [newCoordinates.latitude, newCoordinates.longitude]);
+        
         try {
             const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${newCoordinates.latitude}&lon=${newCoordinates.longitude}`);
             const data = await res.json();
+            
             if (data && data.address) {
+                // Preenche Rua e Bairro
                 setValue("logradouro", data.address.road || "");
                 setValue("bairro", data.address.suburb || data.address.neighbourhood || "");
+                
+                // --- NOVO: Preenche o CEP se estiver disponível ---
+                if (data.address.postcode) {
+                    // Removemos o traço para manter apenas números (padrão de APIs e validação)
+                    const cepLimpo = data.address.postcode.replace("-", "");
+                    setValue("cep", cepLimpo);
+                }
             }
         } catch (e) { console.error(e); }
     };
 
     const registerOngMutation = useMutation({
         mutationFn: async (data: OngRegisterSchema) => {
-            // Monta endereço completo
+            // Monta endereço completo para compatibilidade com o campo 'endereco' do banco
             let enderecoFinal = "";
             if (data.logradouro && data.numero && data.bairro) {
                 enderecoFinal = `${data.logradouro}, ${data.numero} - ${data.bairro}`;
@@ -147,13 +182,12 @@ export default function OngRegister() {
                 enderecoFinal = `CEP: ${data.cep}`;
             }
 
+            // Envia todos os campos separados + o endereço formatado
             const payload = {
                 ...data,
                 endereco: enderecoFinal
             };
 
-            // console.log("PAYLOAD ENVIADO", payload)
-            
             const res = await api.post("/v1/ong", payload);
             return res.data;
         },
@@ -193,7 +227,7 @@ export default function OngRegister() {
         } else if (currentStep === 2) {
              stepIsValid = await trigger("cnpj");
         } else if (currentStep === 3) {
-             stepIsValid = await trigger(["logradouro", "bairro", "numero"]);
+             stepIsValid = await trigger(["cep", "logradouro", "bairro", "numero"]);
         } else {
              stepIsValid = await trigger(fieldToValidate);
         }
@@ -300,6 +334,7 @@ export default function OngRegister() {
                             </div>
                             
                             <div className="h-48 w-full rounded-[12px] overflow-hidden border border-gray-200 shadow-sm">
+                                {/* Garantimos que coords é um array de números, senão o mapa quebra */}
                                 <Map cep={cep} coords={localizacao as [number, number]} onCoordinatesChange={handleChangeCoordinates} />
                             </div>
                             
@@ -330,7 +365,6 @@ export default function OngRegister() {
                         </div>
                     )}
 
-                    {/* Passo 4: Público (Agora com useWatch funcionando) */}
                     {currentStep === 4 && (
                         <div className="flex flex-wrap gap-2 justify-center">
                             {publicoAlvoOptions.map((option) => (
@@ -349,7 +383,6 @@ export default function OngRegister() {
                         </div>
                     )}
                     
-                    {/* Passo 5: Causas */}
                     {currentStep === 5 && (
                         <div className="flex flex-wrap gap-2 justify-center pb-4">
                             {necessidadesOptions.map((option) => (
@@ -383,7 +416,7 @@ export default function OngRegister() {
                                     className={`${inputClass} mt-1 pr-10`} 
                                     placeholder="********"
                                 />
-                                <button onClick={() => setViewPassword(!viewPassword)} className="absolute right-3 top-1/2 translate-y-1/2 text-gray-400 hover:text-gray-600">
+                                <button onClick={() => setViewPassword(!viewPassword)} className="absolute right-3 top-2/3 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                                     {viewPassword ? <FiEyeOff /> : <FiEye />}
                                 </button>
                                 {errors.senha && <span className="text-red-500 text-xs">{errors.senha.message}</span>}
@@ -396,7 +429,7 @@ export default function OngRegister() {
                                     className={`${inputClass} mt-1 pr-10`}
                                     placeholder="********" 
                                 />
-                                <button onClick={() => setViewConfirmPassword(!viewConfirmPassword)} className="absolute right-3 top-1/2 translate-y-1/2 text-gray-400 hover:text-gray-600">
+                                <button onClick={() => setViewConfirmPassword(!viewConfirmPassword)} className="absolute right-3 top-2/3 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                                     {viewConfirmPassword ? <FiEyeOff /> : <FiEye />}
                                 </button>
                                 {errors.confirmar_senha && <span className="text-red-500 text-xs">{errors.confirmar_senha.message}</span>}

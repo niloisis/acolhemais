@@ -4,61 +4,63 @@ import ONGUpdateDto from "./dto/ONGUpdateDto";
 
 class ONGRepository {
 
-    async save(createONG: CreateONG) {
-        // 1. Limpeza de duplicatas nos arrays
-        const uniquePublico = [...new Set(createONG.publico_alvo || [])];
-        const uniqueNecessidades = [...new Set(createONG.necessidades || [])];
+    async save(data: CreateONG) {
+        // Limpeza
+        const uniquePublico = [...new Set(data.publico_alvo || [])];
+        const uniqueNecessidades = [...new Set(data.necessidades || [])];
 
-        // 2. Conversão da Data
-        let anoCriacao: number;
-        if (typeof createONG.data_criacao === 'string') {
-            const date = new Date(createONG.data_criacao);
-            anoCriacao = date.getFullYear();
-            if (isNaN(anoCriacao)) anoCriacao = new Date().getFullYear();
-        } else {
-            anoCriacao = createONG.data_criacao;
-        }
+        // Data
+        let anoCriacao: number = typeof data.data_criacao === 'string' 
+            ? new Date(data.data_criacao).getFullYear() 
+            : data.data_criacao;
+        if (isNaN(anoCriacao)) anoCriacao = new Date().getFullYear();
 
-        // 3. Criação da ONG
+        // Endereço Formatado (String única para exibição rápida)
+        const enderecoFormatado = `${data.logradouro}, ${data.numero} - ${data.bairro}`;
+
         return db.ong.create({
             data: {
-                login: createONG.login,
-                senha: createONG.senha,
+                login: data.login,
+                senha: data.senha,
+                nome: data.nome,
+                cnpj: data.cnpj,
                 descricao: "Não há descrição",
-                nome: createONG.nome,
-                cnpj: createONG.cnpj,
-                
-                // --- CORREÇÃO 1: Prioriza o endereço por extenso, se não tiver, usa o CEP ---
-                endereco: createONG.endereco  || createONG.cep || "Endereço não informado",
-                
                 data_criacao: anoCriacao,
+
+                // --- PADRONIZAÇÃO DE ENDEREÇO ---
+                cep: data.cep,
+                logradouro: data.logradouro,
+                numero: data.numero,
+                complemento: data.complemento,
+                endereco: enderecoFormatado, // Salva o formatado também
                 
-                // Mapeia o array [lat, lon]
-                lat: createONG.localizacao ? createONG.localizacao[0] : 0,
-                lon: createONG.localizacao ? createONG.localizacao[1] : 0,
-                
+                // Conecta ao Bairro pelo Nome (Vem do Seed)
+                bairro: {
+                    connect: { nome: data.bairro } 
+                },
+
+                // Salva Lat/Lon separados
+                lat: data.localizacao ? data.localizacao[0] : 0,
+                lon: data.localizacao ? data.localizacao[1] : 0,
+
+                // Relacionamentos
                 ongNecessidade: {
                     create: uniqueNecessidades.map(n => ({
                         necessidade: {
-                            connectOrCreate: {
-                                where: { tipo: n },
-                                create: { tipo: n }
-                            }
+                            connectOrCreate: { where: { tipo: n }, create: { tipo: n } }
                         }
                     }))
                 },
                 ongPublicoAlvo: {
                     create: uniquePublico.map(p => ({
                         publicoAlvo: {
-                            connectOrCreate: {
-                                where: { tipo: p },
-                                create: { tipo: p }
-                            }
+                            connectOrCreate: { where: { tipo: p }, create: { tipo: p } }
                         }
                     }))
                 },
             },
             include: {
+                bairro: true, // Inclui o bairro na resposta
                 ongNecessidade: { include: { necessidade: true } },
                 ongPublicoAlvo: { include: { publicoAlvo: true } },
             },

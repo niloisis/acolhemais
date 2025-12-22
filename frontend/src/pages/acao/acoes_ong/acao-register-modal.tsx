@@ -18,6 +18,7 @@ import { ReactNode, useEffect } from "react";
 import { api } from "@/utils/api.ts";
 import { useParams } from "react-router-dom";
 import { useQueryClient } from "react-query";
+import { toast } from "react-toastify"; // Adicionei para feedback
 
 const acaoOngSchema = z.object({
     nome: z.string().min(3, { message: "Insira um nome maior" }),
@@ -26,9 +27,10 @@ const acaoOngSchema = z.object({
     ano: z.number().min(2025, { message: "Ano inválido" }),
     inicio: z.string().min(3, { message: "Informe o ínicio" }),
     termino: z.string().min(3, { message: "Informe o término" }),
-    cep: z.string(),
+    cep: z.string().min(8, "CEP obrigatório"),
     bairro: z.string().min(3, { message: "Informe o bairro" }),
-    endereco: z.string().min(1, { message: "Informe o endereço" }),
+    // MUDANÇA: Renomeado de 'endereco' para 'logradouro' para bater com o Backend
+    logradouro: z.string().min(1, { message: "Informe o endereço" }), 
     numero: z.string().min(1, { message: "Informe o número" }),
     complemento: z.string().optional(),
 })
@@ -54,6 +56,9 @@ export default function CreateAcaoModal({ trigger }: { trigger: ReactNode }) {
                 new Date().toLocaleString("pt-BR", { month: "long" }).slice(1),
             dia: new Date().getDate(),
             cep: "",
+            logradouro: "",
+            bairro: "",
+            numero: "",
             complemento: ""
         }
     })
@@ -61,25 +66,32 @@ export default function CreateAcaoModal({ trigger }: { trigger: ReactNode }) {
     const queryClient = useQueryClient()
     
     const onSubmit = async (data: AcaoOngSchema) => {
-        await api.post(`/v1/ong/${id}/acoes`, data)
-        await queryClient.invalidateQueries();
+        try {
+            // O Backend já espera { logradouro, bairro, numero... }
+            // O ongId é pego pelo backend através da URL (:id)
+            await api.post(`/v1/ong/${id}/acoes`, data)
+            await queryClient.invalidateQueries();
+            toast.success("Evento criado com sucesso!");
+        } catch (error) {
+            console.error(error);
+            toast.error("Erro ao criar evento.");
+        }
     };
     
     const cep = watch("cep")
     
     useEffect(() => {
         (async () => {
-            if (cep) {
+            // Remove traço para verificar tamanho
+            const cleanCep = cep?.replace(/\D/g, '') || "";
+            if (cleanCep.length === 8) {
                 try {
-                    const isValidCep = /^\d{5}-?\d{3}$/.test(cep);
-                    if (!isValidCep) return;
-                    
-                    const cleanedCep = cep.replace("-", "");
-                    const response = await fetch(`https://viacep.com.br/ws/${cleanedCep}/json/`);
+                    const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
                     const data = await response.json();
                     
                     if (!data.erro) {
-                        setValue("endereco", data.logradouro)
+                        // MUDANÇA: Setamos 'logradouro' em vez de 'endereco'
+                        setValue("logradouro", data.logradouro)
                         setValue("bairro", data.bairro)
                     }
                 } catch (er) {
@@ -87,14 +99,9 @@ export default function CreateAcaoModal({ trigger }: { trigger: ReactNode }) {
                 }
             }
         })()
-    }, [cep]);
+    }, [cep, setValue]);
 
-    // --- MUDANÇA AQUI ---
-    // Alterei 'pt-6' para 'pt-8' para aumentar o espaço entre o label e o texto
-    // Mantive 'h-14' que já é alto o suficiente para comportar esse espaçamento
     const inputClass = "h-14 pt-6 pb-2 rounded-[12px] border-gray-200 bg-white text-gray-700 shadow-sm focus-visible:ring-blue-600";
-    
-    // Ajustei levemente o topo para 'top-2.5' para centralizar melhor visualmente na parte superior
     const labelClass = "absolute top-0 left-3 text-xs text-gray-500 font-medium z-10 pointer-events-none";
 
     return (
@@ -193,7 +200,8 @@ export default function CreateAcaoModal({ trigger }: { trigger: ReactNode }) {
 
                         <div className="relative">
                             <Label className={labelClass}>Endereço</Label>
-                            <Input className={inputClass} {...register("endereco")} />
+                            {/* MUDANÇA: Registrando como 'logradouro', mas o Label visual continua 'Endereço' */}
+                            <Input className={inputClass} {...register("logradouro")} />
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
@@ -211,6 +219,7 @@ export default function CreateAcaoModal({ trigger }: { trigger: ReactNode }) {
                 </div>
 
                 <DialogFooter className="mt-6">
+                    {/* Botão de Submit direto, sem DialogClose em volta para evitar fechar se der erro (opcional, mantive a lógica original) */}
                     <DialogClose asChild>
                         <Button 
                             className="w-full h-12 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-base shadow-lg"

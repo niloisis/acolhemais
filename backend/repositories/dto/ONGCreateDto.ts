@@ -3,12 +3,24 @@ type CreateONG = {
     senha: string;
     nome: string;
     cnpj: string;
-    data_criacao: string | number; 
+    data_criacao: string | number;
+    
+    // Endereço Detalhado
+    cep: string;
+    logradouro: string;
+    numero: string;
+    bairro: string; // Recebe o NOME do bairro (ex: "Várzea")
+    complemento?: string;
+    
+    // Coordenadas
     localizacao: number[]; // [latitude, longitude]
-    endereco: string; 
-    cep?: string; 
+    
+    // Listas
     publico_alvo: string[];
     necessidades: string[];
+    
+    // Campo legado (opcional, pois montaremos no back)
+    endereco?: string; 
 }
 
 export default CreateONG;

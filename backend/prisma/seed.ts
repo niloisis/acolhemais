@@ -2,7 +2,9 @@ import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
-// Lista oficial de bairros do Recife
+// --- 1. LISTAS DE DADOS ---
+
+// Bairros do Recife
 const bairrosRecife = [
   "Aflitos", "Afogados", "Água Fria", "Alto do Mandu", "Alto José do Pinho", 
   "Alto José Bonifácio", "Alto Santa Terezinha", "Apipucos", "Areias", "Arruda", 
@@ -23,15 +25,34 @@ const bairrosRecife = [
   "Santo Antônio", "São José", "Sítio dos Pintos", "Soledade", "Tamarineira", 
   "Tejipió", "Torre", "Torreão", "Torrões", "Totó", "Várzea", "Vasco da Gama", 
   "Zumbi"
-]
+];
+
+// Causas / Necessidades (Mesma lista do Frontend)
+const necessidadesOptions = [
+    "Assistência Social", "Educação", "Saúde", "Saúde Mental", 
+    "Meio Ambiente", "Combate à Pobreza", "Cultura e Arte", 
+    "Igualdade de Gênero", "Direitos Humanos", "Justiça Social", 
+    "Esporte e Lazer", "Desenvolvimento Comunitário", "Emergências", "Emprego"
+];
+
+// Públicos Alvo (Mesma lista do Frontend)
+const publicoAlvoOptions = [
+    "Crianças", "Adolescentes", "Adultos", "Idosos", "Homens", 
+    "Mulheres", "Animais", "População negra", "População Indígena", 
+    "LGBTQIA+", "Pessoas com Deficiência"
+];
+
+// --- 2. FUNÇÃO PRINCIPAL ---
 
 async function main() {
-  console.log('🌱 Iniciando seed dos bairros de Recife...')
+  console.log('🌱 Iniciando seed do banco de dados...')
 
+  // A. Seed de Bairros
+  console.log('📍 Populando Bairros...')
   for (const bairro of bairrosRecife) {
     await prisma.bairro.upsert({
       where: { nome: bairro },
-      update: {}, // Se já existir, não faz nada
+      update: {},
       create: {
         nome: bairro,
         cidade: "Recife",
@@ -40,7 +61,29 @@ async function main() {
     })
   }
 
-  console.log('✅ Bairros populados com sucesso!')
+  // B. Seed de Necessidades (Causas)
+  console.log('❤️ Populando Necessidades (Causas)...')
+  for (const tipo of necessidadesOptions) {
+    // Assumindo que seu model se chama 'Necessidade' e o campo único é 'tipo'
+    await prisma.necessidade.upsert({
+      where: { tipo: tipo },
+      update: {},
+      create: { tipo: tipo },
+    })
+  }
+
+  // C. Seed de Público Alvo
+  console.log('👥 Populando Público Alvo...')
+  for (const tipo of publicoAlvoOptions) {
+    // Assumindo que seu model se chama 'PublicoAlvo' e o campo único é 'tipo'
+    await prisma.publicoAlvo.upsert({
+      where: { tipo: tipo },
+      update: {},
+      create: { tipo: tipo },
+    })
+  }
+
+  console.log('✅ Seed finalizado com sucesso!')
 }
 
 main()
@@ -48,7 +91,7 @@ main()
     await prisma.$disconnect()
   })
   .catch(async (e) => {
-    console.error(e)
+    console.error('❌ Erro no seed:', e)
     await prisma.$disconnect()
     process.exit(1)
   })

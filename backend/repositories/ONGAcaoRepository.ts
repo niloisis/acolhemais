@@ -1,34 +1,49 @@
-import db from "../db";
+import db from '../db.ts';
 import ONGAcaoCreateRequest from "./dto/ONGAcaoCreateDto";
 
-class AcaoRepository {
+class ONGAcaoRepository {
 
-    async save(ongAcaoCreateRequest: ONGAcaoCreateRequest) {
+    async save(data: ONGAcaoCreateRequest) {
+        
+        // Monta endereço formatado
+        const enderecoFormatado = `${data.logradouro}, ${data.numero} - ${data.bairro}`;
+
         return db.acao.create({
             data: {
-                nome: ongAcaoCreateRequest.nome,
-                dia: ongAcaoCreateRequest.dia,
-                mes: ongAcaoCreateRequest.mes,
-                ano: ongAcaoCreateRequest.ano,
-                inicio: ongAcaoCreateRequest.inicio,
-                termino: ongAcaoCreateRequest.termino,
-                cep: ongAcaoCreateRequest.cep,
-                bairro: ongAcaoCreateRequest.bairro,
-                endereco: ongAcaoCreateRequest.endereco,
-                numero: ongAcaoCreateRequest.numero,
-                complemento: ongAcaoCreateRequest.complemento,
-                descricao: "Não há descrição sobre este evento",
-                como_participar: "Adicione informações sobre como participar deste evento",
-                link_contato: "",
-                ong: {
-                    connect: {
-                        id: ongAcaoCreateRequest.ongId, // <-- corrigido
-                    },
+                nome: data.nome,
+                dia: data.dia,
+                mes: data.mes,
+                ano: data.ano,
+                inicio: data.inicio,
+                termino: data.termino,
+                descricao: data.descricao || "",
+                como_participar: data.como_participar || "",
+                link_contato: data.link_contato || "",
+
+                // --- PADRONIZAÇÃO ---
+                cep: data.cep,
+                logradouro: data.logradouro,
+                numero: data.numero,
+                complemento: data.complemento,
+                endereco: enderecoFormatado,
+                
+                // Conecta Bairro
+                bairro: {
+                    connect: { nome: data.bairro }
                 },
+
+                // Salva Lat/Lon se vierem (opcional na ação)
+                lat: data.localizacao ? data.localizacao[0] : null,
+                lon: data.localizacao ? data.localizacao[1] : null,
+                
+                // Conecta ONG
+                ong: {
+                    connect: { id: data.ongId }
+                }
             },
             include: {
-                ong: true
-            },
+                bairro: true // Inclui dados do bairro
+            }
         });
     }
 
@@ -67,4 +82,4 @@ class AcaoRepository {
     }
 }
 
-export default new AcaoRepository();
+export default new ONGAcaoRepository();

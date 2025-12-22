@@ -4,7 +4,7 @@ import multer from "multer";
 import LoginController from "./controllers/LoginController";
 import {authMiddleware} from "./controllers/middleware/authMiddleware";
 import ONGAcaoController from "./controllers/ONGAcaoController";
-
+import LookupController from "./controllers/LookupController";
 
 const upload = multer();
 const router = Router();
@@ -36,5 +36,8 @@ router.get('/v1/ong/:id/logo', ONGController.getLogo);
 router.post('/v1/ong/:id/image', upload.single('picture'), ONGController.addImage);
 router.delete('/v1/ong/:id/image', ONGController.removeImage);
 router.get('/v1/ong-image/:id', ONGController.getImage);
+
+router.get('/v1/necessidades', LookupController.getNecessidades);
+router.get('/v1/publico-alvo', LookupController.getPublicoAlvo);
 
 export default router;
