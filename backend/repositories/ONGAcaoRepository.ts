@@ -54,9 +54,41 @@ class ONGAcaoRepository {
         });
     }
 
-    async findAll() {
+    async findAll(filters?: { category?: string[], target?: string[] }) {
+        
+        const whereClause: any = {};
+
+        // Se tiver filtro de Categoria/Causa, filtra pela ONG pai
+        if (filters?.category && filters.category.length > 0) {
+            whereClause.ong = {
+                ...whereClause.ong, // Mantém filtros anteriores da ONG se houver
+                ongNecessidade: {
+                    some: {
+                        necessidade: { tipo: { in: filters.category } }
+                    }
+                }
+            };
+        }
+
+        // Se tiver filtro de Público Alvo, filtra pela ONG pai
+        if (filters?.target && filters.target.length > 0) {
+            whereClause.ong = {
+                ...whereClause.ong,
+                ongPublicoAlvo: {
+                    some: {
+                        publicoAlvo: { tipo: { in: filters.target } }
+                    }
+                }
+            };
+        }
+
         return db.acao.findMany({
-            include: { ong: true }
+            where: whereClause,
+            include: {
+                bairro: true,
+                ong: true // Necessário para pegar o nome da ONG
+            },
+            orderBy: { id: 'desc' }
         });
     }
 

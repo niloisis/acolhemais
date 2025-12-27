@@ -77,10 +77,22 @@ export default class ONGAcaoController {
 
     static async findAll(req: Request, res: Response): Promise<any> {
         try {
+            const { category, target } = req.query;
+
+            // Função auxiliar para converter query string em array
+            const toArray = (param: any) => {
+                if (!param) return [];
+                if (Array.isArray(param)) return param.map(String);
+                return String(param).split(',');
+            };
+
+            const acoes = await ONGAcaoRepository.findAll({
+                category: toArray(category),
+                target: toArray(target)
+            });
+
             return res.status(200).json(
-                ONGMapper.toCompleteAcaoResponseList(
-                    await ONGAcaoRepository.findAll(),
-                )
+                ONGMapper.toCompleteAcaoResponseList(acoes)
             );
         } catch (error) {
             console.log(error);

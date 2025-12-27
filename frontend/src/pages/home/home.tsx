@@ -36,13 +36,21 @@ export default function HomePage() {
     { keepPreviousData: true }
   );
 
-  // ... (useQuery de acoes igual ao anterior) ...
+  // --- QUERY DE AÇÕES ---
   const { data: acoesList, isLoading: loadingAcoes } = useQuery(
-    ["acoes"],
+    // Adicione os filtros na chave do cache para refazer a busca quando mudarem
+    ["acoes", selectedCauses, selectedTargets], 
     async () => {
-        const res = await api.get("/v1/acoes");
+        const params = new URLSearchParams();
+        
+        // Envia filtros de Causa e Público para o backend filtrar pela ONG
+        if(selectedCauses.length > 0) params.append("category", selectedCauses.join(','));
+        if(selectedTargets.length > 0) params.append("target", selectedTargets.join(','));
+
+        const res = await api.get(`/v1/acoes?${params.toString()}`);
         return res.data;
-    }
+    },
+    { keepPreviousData: true }
   );
 
   // Toggle genérico
@@ -69,11 +77,14 @@ export default function HomePage() {
   };
 
 
-  // ... (filtro de ações igual) ...
+  // --- FILTRO VISUAL DE AÇÕES (Apenas Texto e Região) ---
+  // Causa e Público agora já vêm filtrados do banco, então removemos essa lógica daqui.
   const filteredAcoes = acoesList?.filter((acao: any) => {
-    // 1. Texto
+    // 1. Texto (Nome da Ação)
     const matchesSearch = acao.nome.toLowerCase().includes(searchTerm.toLowerCase());
-    // 2. Região
+    
+    // 2. Região (Endereço da Ação)
+    // Mantemos no front pois a ação tem endereço próprio, independente da ONG
     const matchesRegion = selectedRegions.length === 0 || 
         selectedRegions.some(region => acao.endereco?.toLowerCase().includes(region.toLowerCase()));
     
