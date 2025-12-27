@@ -8,6 +8,7 @@ import { SearchAndFilters } from "@/components/SearchAndFilters";
 import { CardONG } from "@/components/ui/cardONG";
 import { CardAcao } from "@/components/ui/cardAcao";
 import { serverURI, api } from "@/utils/api";
+import TriageModal from "@/components/TriageModal";
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -16,22 +17,36 @@ export default function HomePage() {
   const [selectedCauses, setSelectedCauses] = useState<string[]>([]);
   const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
   const [selectedTargets, setSelectedTargets] = useState<string[]>([]);
+  const [triageData, setTriageData] = useState<any>(null); // Estado para guardar dados da triagem
 
   // --- QUERY DE ONGS ---
   const { data: ongList, isLoading: loadingOngs } = useQuery(
-    ["ongs", searchTerm, selectedCauses, selectedRegions, selectedTargets], 
+    ["ongs", searchTerm, selectedCauses, selectedRegions, selectedTargets, triageData], 
     async () => {
         const params = new URLSearchParams();
+
+        // Se o usuário está USANDO FILTROS MANUAIS, ignoramos a recomendação e usamos o filtro normal
+        const hasManualFilters = searchTerm || selectedCauses.length > 0 || selectedRegions.length > 0 || selectedTargets.length > 0;
         
-        if(searchTerm) params.append("location", searchTerm);
+        if (!hasManualFilters && triageData) {
+            // --- MODO RECOMENDAÇÃO (ALGORITMO) ---
+            // Envia POST para o endpoint de recomendação
+            const res = await api.post("/v1/recommend", {
+                userLat: triageData.lat,
+                userLon: triageData.lon,
+                interests: triageData.interests
+            });
+            return res.data;
+        } else {
+            // --- MODO CLÁSSICO (FILTROS) ---
+            if(searchTerm) params.append("location", searchTerm);
+            if(selectedCauses.length > 0) params.append("category", selectedCauses.join(','));
+            if(selectedRegions.length > 0 && !searchTerm) params.append("location", selectedRegions.join(','));
+            if(selectedTargets.length > 0) params.append("target", selectedTargets.join(','));
 
-        // MUDANÇA: Usamos join(',') para mandar todas as opções selecionadas
-        if(selectedCauses.length > 0) params.append("category", selectedCauses.join(','));
-        if(selectedRegions.length > 0 && !searchTerm) params.append("location", selectedRegions.join(','));
-        if(selectedTargets.length > 0) params.append("target", selectedTargets.join(','));
-
-        const res = await api.get(`/v1/ong?${params.toString()}`);
-        return res.data;
+            const res = await api.get(`/v1/ong?${params.toString()}`);
+            return res.data;
+        }
     },
     { keepPreviousData: true }
   );
@@ -106,6 +121,18 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-white">
       <Header />
+
+        {/* MODAL DE TRIAGEM (Só aparece se não tiver no localStorage) */}
+        <TriageModal onComplete={(data) => setTriageData(data)} />
+
+        {/* FEEDBACK VISUAL DO MODO RECOMENDAÇÃO */}
+        {triageData && !searchTerm && selectedCauses.length === 0 && selectedRegions.length === 0 && (
+            <div className="max-w-3xl mx-auto px-4 mt-2">
+                <div className="mt-4 px-8 bg-blue-50 border border-blue-100 rounded-full p-3 text-sm text-blue-800 flex items-center gap-2">
+                    ✨ Exibindo recomendações personalizadas para <strong>{triageData.addressLabel}</strong>
+                </div>
+            </div>
+        )}
 
         <main className="px-4 pb-4 pt-0 max-w-3xl mx-auto relative z-10 overflow-x-hidden">        <Tabs defaultValue="ONGs" className="w-full">
           {/* ... TabsList igual ... */}
