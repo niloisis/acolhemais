@@ -125,15 +125,6 @@ export default function HomePage() {
         {/* MODAL DE TRIAGEM (Só aparece se não tiver no localStorage) */}
         <TriageModal onComplete={(data) => setTriageData(data)} />
 
-        {/* FEEDBACK VISUAL DO MODO RECOMENDAÇÃO */}
-        {triageData && !searchTerm && selectedCauses.length === 0 && selectedRegions.length === 0 && (
-            <div className="max-w-3xl mx-auto px-4 mt-2">
-                <div className="mt-4 px-8 bg-blue-50 border border-blue-100 rounded-full p-3 text-sm text-blue-800 flex items-center gap-2">
-                    ✨ Exibindo recomendações personalizadas para <strong>{triageData.addressLabel}</strong>
-                </div>
-            </div>
-        )}
-
         <main className="px-4 pb-4 pt-0 max-w-3xl mx-auto relative z-10 overflow-x-hidden">        <Tabs defaultValue="ONGs" className="w-full">
           {/* ... TabsList igual ... */}
           <TabsList className="w-full flex h-auto p-0 bg-transparent border-b border-gray-200 rounded-none mb-6">
@@ -168,6 +159,15 @@ export default function HomePage() {
               <p className="text-gray-500 text-center py-48">Nenhuma ONG encontrada com esses filtros.</p>
             )}
 
+            {/* FEEDBACK VISUAL DO MODO RECOMENDAÇÃO */}
+            {triageData && !searchTerm && selectedCauses.length === 0 && selectedRegions.length === 0 && (
+                <div className=" mx-auto -mt-2">
+                    <div className="mt-4 px-4 bg-blue-50 border border-blue-100 rounded-[16px] p-3 text-sm text-blue-800 flex items-center gap-2">
+                        ✨ Exibindo ONGs próximas ao bairro:<strong>{triageData.addressLabel}</strong>
+                    </div>
+                </div>
+            )}  
+
             {ongList?.map((ong: any) => (
               <div key={ong.id} className="cursor-pointer hover:scale-[1.01] transition-transform" 
                    onClick={() => navigate(localStorage.getItem("ongId") === ong.id ? `/ong/admin/${ong.id}` : `/ong/${ong.id}`)}>
@@ -186,6 +186,15 @@ export default function HomePage() {
           <TabsContent value="Ações e Eventos" className="space-y-4 mt-0">
             {filteredAcoes?.length === 0 && (
               <p className="text-gray-500 text-center py-48">Nenhuma ação encontrada.</p>
+            )}
+
+            {/* FEEDBACK VISUAL DO MODO RECOMENDAÇÃO */}
+            {triageData && !searchTerm && selectedCauses.length === 0 && selectedRegions.length === 0 && (
+                <div className=" mx-auto  -mt-2">
+                    <div className="mt-4 px-4 bg-blue-50 border border-blue-100 rounded-[16px] p-3 text-sm text-blue-800 flex items-center gap-2">
+                        ✨ Exibindo eventos próximos ao bairro:<strong>{triageData.addressLabel}</strong>
+                    </div>
+                </div>
             )}
             
             {filteredAcoes?.map((acao: any) => {

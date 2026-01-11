@@ -158,6 +158,8 @@ model TipoContato {
 model Bairro {
   id        String   @id @default(uuid())
   nome      String   @unique
+  lat       Float
+  lon       Float
   cidade    String   @default("Recife")
   estado    String   @default("PE")
   createdAt DateTime @default(now())
