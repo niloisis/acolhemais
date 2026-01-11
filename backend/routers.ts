@@ -5,7 +5,6 @@ import LoginController from "./controllers/LoginController";
 import {authMiddleware} from "./controllers/middleware/authMiddleware";
 import ONGAcaoController from "./controllers/ONGAcaoController";
 import LookupController from "./controllers/LookupController";
-import RecommendationController from "./controllers/RecommendationController";
 
 const upload = multer();
 const router = Router();
@@ -41,7 +40,5 @@ router.get('/v1/ong-image/:id', ONGController.getImage);
 router.get('/v1/necessidades', LookupController.getNecessidades);
 router.get('/v1/publico-alvo', LookupController.getPublicoAlvo);
 router.get('/v1/bairros', LookupController.getBairros);
-
-router.post('/v1/recommend', RecommendationController.recommend);
 
 export default router;

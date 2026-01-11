@@ -1,4 +1,4 @@
-import { Search, MapPin, Heart, Users, Trash2 } from "lucide-react";
+import { Search, MapPin, Heart, Users, Trash2, Sparkles } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +26,7 @@ interface SearchAndFiltersProps {
   onTargetChange: (value: string) => void;
 
   onClear: () => void;
+  onRedoTriage?: () => void; // Prop opcional para refazer a triagem
 }
 
 export const SearchAndFilters = ({
@@ -37,7 +38,8 @@ export const SearchAndFilters = ({
   onRegionChange,
   selectedTargets,
   onTargetChange,
-  onClear
+  onClear,
+  onRedoTriage
 }: SearchAndFiltersProps) => {
   
   const [causasOptions, setCausasOptions] = useState<string[]>([]);
@@ -86,7 +88,7 @@ export const SearchAndFilters = ({
         />
       </div>
 
-      {/* Área dos Filtros */}
+      {/* Área dos Filtros (Carrossel Horizontal) */}
       <div 
         className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0"
         style={hideScrollStyle}
@@ -97,6 +99,24 @@ export const SearchAndFilters = ({
             }
         `}</style>
         
+        {/* --- 0. BOTÃO MÁGICO DE RECOMENDAÇÃO --- */}
+        {/* Só aparece se a função onRedoTriage for passada */}
+        {onRedoTriage && (
+            <>
+                <Button 
+                    variant="outline"
+                    onClick={onRedoTriage}
+                    className="h-9 rounded-full text-xs font-bold border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:border-blue-300 active:scale-95 flex-shrink-0 mr-1 transition-all duration-200"
+                >
+                    <Sparkles className="w-3 h-3 mr-1.5 fill-blue-300" />
+                    Recomendações
+                </Button>
+                
+                {/* Separador visual */}
+                <div className="h-6 w-px bg-gray-200 mx-1 flex-shrink-0" />
+            </>
+        )}
+
         {/* 1. Causas */}
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -116,7 +136,6 @@ export const SearchAndFilters = ({
                     )}
                 </Button>
             </DropdownMenuTrigger>
-            {/* Adicionado p-1 para diminuir a borda interna */}
             <DropdownMenuContent className="w-56 bg-white max-h-80 rounded-[16px] overflow-y-auto p-1 shadow-lg border-gray-100" align="start">
                 <DropdownMenuLabel className="px-2 py-1.5">Filtrar por Causa</DropdownMenuLabel>
                 <DropdownMenuSeparator className="-mx-1 my-1" />
@@ -152,7 +171,6 @@ export const SearchAndFilters = ({
                     )}
                 </Button>
             </DropdownMenuTrigger>
-            {/* Adicionado p-1 para diminuir a borda interna */}
             <DropdownMenuContent className="w-56 bg-white max-h-80 rounded-[16px] overflow-y-auto p-1 shadow-lg border-gray-100" align="start">
                 <DropdownMenuLabel className="px-2 py-1.5">Filtrar por Público</DropdownMenuLabel>
                 <DropdownMenuSeparator className="-mx-1 my-1" />
@@ -188,7 +206,6 @@ export const SearchAndFilters = ({
                     )}
                 </Button>
             </DropdownMenuTrigger>
-            {/* Adicionado p-1 para diminuir a borda interna */}
             <DropdownMenuContent className="w-56 bg-white max-h-80 overflow-y-auto rounded-[16px] p-1 shadow-lg border-gray-100" align="start">
                 <DropdownMenuLabel className="px-2 py-1.5">Filtrar por Bairro</DropdownMenuLabel>
                 <DropdownMenuSeparator className="-mx-1 my-1" />
@@ -197,7 +214,7 @@ export const SearchAndFilters = ({
                         key={bairro}
                         checked={selectedRegions.includes(bairro)}
                         onCheckedChange={() => onRegionChange(bairro)}
-                        className="cursor-pointer rounded-lg my-0.5 focus:bg-gray-50"
+                        className="cursor-pointer rounded-lg mx-1 my-0.5 focus:bg-gray-50"
                     >
                         {bairro}
                     </DropdownMenuCheckboxItem>

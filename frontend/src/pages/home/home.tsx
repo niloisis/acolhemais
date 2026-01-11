@@ -1,8 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "react-query";
 import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Skeleton } from "@/components/ui/skeleton";
 import Header from "@/components/common/Header"; 
 import { SearchAndFilters } from "@/components/SearchAndFilters";
 import { CardONG } from "@/components/ui/cardONG";
@@ -13,81 +12,96 @@ import TriageModal from "@/components/TriageModal";
 export default function HomePage() {
   const navigate = useNavigate();
   
+  // ESTADOS (Filtros)
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCauses, setSelectedCauses] = useState<string[]>([]);
   const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
   const [selectedTargets, setSelectedTargets] = useState<string[]>([]);
-  const [triageData, setTriageData] = useState<any>(null); // Estado para guardar dados da triagem
+  
+  // Estado para controlar se mostramos o Modal
+  const [showTriage, setShowTriage] = useState(false);
+
+  // Verifica localStorage ao carregar
+  useEffect(() => {
+     const savedTriage = localStorage.getItem("user_triage");
+     if (!savedTriage) {
+         setShowTriage(true);
+     } else {
+         // (Opcional) Se quiser carregar os filtros salvos ao reabrir o app:
+         // const data = JSON.parse(savedTriage);
+         // if(data.addressLabel) setSelectedRegions([data.addressLabel]);
+         // if(data.interests) setSelectedCauses(data.interests);
+     }
+  }, []);
 
   // --- QUERY DE ONGS ---
-  const { data: ongList, isLoading: loadingOngs } = useQuery(
-    ["ongs", searchTerm, selectedCauses, selectedRegions, selectedTargets, triageData], 
+  const { data: ongList, isLoading } = useQuery(
+    ["ongs", searchTerm, selectedCauses, selectedRegions, selectedTargets], 
     async () => {
         const params = new URLSearchParams();
 
-        const hasManualFilters = searchTerm || selectedCauses.length > 0 || selectedRegions.length > 0 || selectedTargets.length > 0;
+        if(searchTerm) params.append("search", searchTerm);
         
-        // MODO RECOMENDAÇÃO (Algoritmo)
-        if (!hasManualFilters && triageData) {
-            const res = await api.post("/v1/recommend", {
-                userLat: triageData.lat,
-                userLon: triageData.lon,
-                interests: triageData.interests
-            });
-            return res.data;
-        } else {
-            // MODO CLÁSSICO (Filtros Manuais)
-            
-            // 1. Busca por Nome (Texto)
-            // Backend deve esperar 'search' ou 'nome' para filtrar pelo nome da ONG
-            if(searchTerm) params.append("search", searchTerm); 
+        // Passa os arrays para o backend
+        if(selectedCauses.length > 0) params.append("category", selectedCauses.join(','));
+        if(selectedRegions.length > 0) params.append("location", selectedRegions.join(','));
+        if(selectedTargets.length > 0) params.append("target", selectedTargets.join(','));
 
-            // 2. Filtro de Bairro (Localização/Proximidade)
-            if(selectedRegions.length > 0) params.append("location", selectedRegions.join(','));
-
-            // 3. Outros filtros
-            if(selectedCauses.length > 0) params.append("category", selectedCauses.join(','));
-            if(selectedTargets.length > 0) params.append("target", selectedTargets.join(','));
-
-            const res = await api.get(`/v1/ong?${params.toString()}`);
-            return res.data;
-        }
+        // Se o usuário usou GPS na triagem, poderiamos passar userLat/Lon aqui
+        // mas para manter consistência visual com o filtro de bairro, vamos focar no 'location'
+        
+        const res = await api.get(`/v1/ong?${params.toString()}`);
+        return res.data;
     },
-    { keepPreviousData: true }
+    { keepPreviousData: true, staleTime: 1000 * 60 * 5 }
   );
 
-  // --- QUERY DE AÇÕES ---
-  const { data: acoesList, isLoading: loadingAcoes } = useQuery(
-    ["acoes", selectedCauses, selectedTargets, selectedRegions, searchTerm], // Adicionado regions e search na chave
+  // --- QUERY AÇÕES ---
+  const { data: acoesList } = useQuery(
+    ["acoes", selectedCauses, selectedTargets, selectedRegions], 
     async () => {
         const params = new URLSearchParams();
-        
-        // Agora passamos todos os filtros para as ações também
-        if(searchTerm) params.append("search", searchTerm);
         if(selectedCauses.length > 0) params.append("category", selectedCauses.join(','));
         if(selectedTargets.length > 0) params.append("target", selectedTargets.join(','));
         if(selectedRegions.length > 0) params.append("location", selectedRegions.join(','));
-
         const res = await api.get(`/v1/acoes?${params.toString()}`);
         return res.data;
     },
-    { keepPreviousData: true }
+    { keepPreviousData: true, staleTime: 1000 * 60 * 5 }
   );
 
-  // Toggle genérico
-  const toggleFilter = (type: 'cause' | 'region' | 'target', value: string) => {
-      let setList: any;
-      let currentList: string[] = [];
-
-      if (type === 'cause') { setList = setSelectedCauses; currentList = selectedCauses; }
-      if (type === 'region') { setList = setSelectedRegions; currentList = selectedRegions; }
-      if (type === 'target') { setList = setSelectedTargets; currentList = selectedTargets; }
-
-      if (currentList.includes(value)) {
-          setList(currentList.filter(item => item !== value)); 
-      } else {
-          setList([...currentList, value]); 
+  // --- FUNÇÃO QUE RECEBE DADOS DA TRIAGEM ---
+  const handleTriageComplete = (data: any) => {
+      // 1. Salva no local storage (o modal já faz isso, mas garantimos)
+      localStorage.setItem("user_triage", JSON.stringify(data));
+      
+      // 2. APLICA NOS FILTROS VISUAIS (Isso satisfaz seu requisito 2 e 3)
+      if (data.interests && data.interests.length > 0) {
+          setSelectedCauses(data.interests);
       }
+      if (data.addressLabel) {
+          // Se for GPS, o label pode ser o bairro. Se for manual, é o que ele digitou.
+          setSelectedRegions([data.addressLabel]);
+      }
+      
+      setShowTriage(false);
+  };
+
+  // Função para reabrir a triagem (Reset total)
+  const handleRedoTriage = () => {
+      localStorage.removeItem("user_triage");
+      setSelectedCauses([]);
+      setSelectedRegions([]);
+      setSelectedTargets([]);
+      setSearchTerm("");
+      setShowTriage(true);
+  };
+
+  const toggleFilter = (type: string, value: string) => {
+      // (Mesma lógica de antes...)
+      if (type === 'cause') setSelectedCauses(prev => prev.includes(value) ? prev.filter(i => i !== value) : [...prev, value]);
+      if (type === 'region') setSelectedRegions(prev => prev.includes(value) ? prev.filter(i => i !== value) : [...prev, value]);
+      if (type === 'target') setSelectedTargets(prev => prev.includes(value) ? prev.filter(i => i !== value) : [...prev, value]);
   };
 
   const clearAllFilters = () => {
@@ -97,130 +111,69 @@ export default function HomePage() {
       setSelectedTargets([]);
   };
 
-
-  // --- FILTRO VISUAL DE AÇÕES (Backup Client-Side) ---
-  // Mantemos isso caso o backend de ações ainda não esteja 100% filtrando tudo,
-  // mas o ideal é que o backend faça o trabalho pesado.
-  const filteredAcoes = acoesList?.filter((acao: any) => {
-    // Se o backend já filtrou, isso aqui só garante
-    return true; 
-  });
-
-  if (loadingOngs || loadingAcoes) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-         <Header />
-         <div className="p-4 space-y-4 max-w-3xl mx-auto mt-4">
-            <Skeleton className="h-12 w-full rounded-full" />
-            {[1, 2, 3].map((i) => <Skeleton key={i} className="h-40 w-full rounded-xl" />)}
-         </div>
-      </div>
-    );
-  }
+  // Filtro client-side simples para ações (fallback)
+  const filteredAcoes = acoesList; 
 
   return (
     <div className="min-h-screen bg-white">
-      <Header />
+       <Header />
 
-        {/* MODAL DE TRIAGEM (Só aparece se não tiver no localStorage) */}
-        <TriageModal onComplete={(data) => setTriageData(data)} />
+       {/* MODAL CONECTADO */}
+       {showTriage && <TriageModal onComplete={handleTriageComplete} />}
 
-        <main className="px-4 pb-4 pt-0 max-w-3xl mx-auto relative z-10 overflow-x-hidden">        <Tabs defaultValue="ONGs" className="w-full">
-          {/* ... TabsList igual ... */}
+       <main className="px-4 pb-4 pt-0 max-w-3xl mx-auto relative z-10 overflow-x-hidden">
+        <Tabs defaultValue="ONGs" className="w-full">
+          
           <TabsList className="w-full flex h-auto p-0 bg-transparent border-b border-gray-200 rounded-none mb-6">
-            <TabsTrigger value="ONGs" className="flex-1 rounded-none bg-transparent py-4 text-base font-semibold text-gray-500 border-b-4 border-transparent transition-all hover:text-blue-500 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:shadow-none">
-              ONGs
-            </TabsTrigger>
-            <TabsTrigger value="Ações e Eventos" className="flex-1 rounded-none bg-transparent py-4 text-base font-semibold text-gray-500 border-b-4 border-transparent transition-all hover:text-blue-500 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:shadow-none">
-              Ações e Eventos
-            </TabsTrigger>
+             {/* ... Triggers das Tabs ... */}
+             <TabsTrigger value="ONGs" className="flex-1 py-4 font-semibold text-gray-500 border-b-4 border-transparent data-[state=active]:border-blue-600 data-[state=active]:text-blue-600">ONGs</TabsTrigger>
+             <TabsTrigger value="Ações e Eventos" className="flex-1 py-4 font-semibold text-gray-500 border-b-4 border-transparent data-[state=active]:border-blue-600 data-[state=active]:text-blue-600">Ações</TabsTrigger>
           </TabsList>
 
           <div className="rounded-xl mb-4 -mt-2">
              <SearchAndFilters
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
-                
                 selectedCauses={selectedCauses}
                 onCauseChange={(v) => toggleFilter('cause', v)}
-                
                 selectedRegions={selectedRegions}
                 onRegionChange={(v) => toggleFilter('region', v)}
-
                 selectedTargets={selectedTargets}
                 onTargetChange={(v) => toggleFilter('target', v)}
+                onClear={clearAllFilters}
                 
-                onClear={clearAllFilters} // Limpa tudo de uma vez
+                // Passamos a função de refazer triagem
+                onRedoTriage={handleRedoTriage}
              />
           </div>
 
           <TabsContent value="ONGs" className="space-y-4 mt-0">
-            {ongList?.length === 0 && (
-              <p className="text-gray-500 text-center py-48">Nenhuma ONG foi encontrada.</p>
-            )}
-
-            {/* FEEDBACK VISUAL DO MODO RECOMENDAÇÃO*/}
-            {triageData && !searchTerm && selectedCauses.length === 0 && selectedRegions.length === 0 && (
-                <div className=" mx-auto -mt-2">
-                    <div className="mt-4 px-4 bg-blue-50 border border-blue-100 rounded-[16px] p-3 text-sm text-blue-800 flex items-center gap-2">
-                        ✨ Exibindo ONGs próximas ao bairro:<strong>{triageData.addressLabel}</strong>
-                    </div>
-                </div>
-            )}
-
-            {ongList?.map((ong: any) => (
-              <div key={ong.id} className="cursor-pointer hover:scale-[1.01] transition-transform" 
-                   onClick={() => navigate(localStorage.getItem("ongId") === ong.id ? `/ong/admin/${ong.id}` : `/ong/${ong.id}`)}>
-                <CardONG
-                  image={ong.images?.length > 0 ? `${serverURI}/v1/ong-image/${ong.images[0]}` : undefined}
-                  nome={ong.nome}
-                  endereco={ong.endereco}
-                  descricao={ong.descricao}
-                  publicoAlvo={ong.publico_alvo?.map((p: any) => p.tipo) || []}
-                  necessidades={ong.necessidades?.map((n: any) => n.tipo) || []}
-                  referencia={ong.referencia}
-                />
-              </div>
-            ))}
+             {/* ... Lista de ONGs com CardONG ... */}
+             {ongList?.map((ong: any) => (
+                  <div key={ong.id} onClick={() => navigate(`/ong/${ong.id}`)}>
+                    <CardONG 
+                        {...ong} 
+                        // O backend agora manda a referencia baseada no raio!
+                        referencia={ong.referencia} 
+                        image={ong.images?.[0] ? `${serverURI}/v1/ong-image/${ong.images[0]}` : undefined}
+                        publicoAlvo={ong.publico_alvo?.map((p:any) => p.tipo) || []}
+                        necessidades={ong.necessidades?.map((n:any) => n.tipo) || []}
+                    />
+                  </div>
+             ))}
           </TabsContent>
 
           <TabsContent value="Ações e Eventos" className="space-y-4 mt-0">
-            {filteredAcoes?.length === 0 && (
-              <p className="text-gray-500 text-center py-48">Nenhuma ação encontrada.</p>
-            )}
-
-            {/* FEEDBACK VISUAL DO MODO RECOMENDAÇÃO}
-            {triageData && !searchTerm && selectedCauses.length === 0 && selectedRegions.length === 0 && (
-                <div className=" mx-auto  -mt-2">
-                    <div className="mt-4 px-4 bg-blue-50 border border-blue-100 rounded-[16px] p-3 text-sm text-blue-800 flex items-center gap-2">
-                        ✨ Exibindo eventos próximos ao bairro:<strong>{triageData.addressLabel}</strong>
-                    </div>
-                </div>
-            )*/}
-            
-            {filteredAcoes?.map((acao: any) => {
-               const ongName = acao.nomeOng || ongList?.find((o:any) => o.id === acao.ongId)?.nome;
-               
-               // --- CORREÇÃO DA IMAGEM DA AÇÃO ---
-               // Verifique se sua rota no backend é /v1/acao/:id/banner ou algo similar
-               // Baseado no seu Controller anterior: static async getBanner(req: Request, res: Response)
-               // Geralmente é mapeado para GET /v1/acoes/:id/banner
-               const bannerUrl = `${serverURI}/v1/acoes/${acao.id}/banner`;
-
-               return (
-                  <div key={acao.id} className="cursor-pointer hover:scale-[1.01] transition-transform" 
-                       onClick={() => navigate(`/ong/${acao.ongId || 'guest'}/acoes/${acao.id}`)}>
-                    <CardAcao
-                      image={bannerUrl} 
-                      nomeAcao={acao.nome}
-                      nomeOng={ongName}
-                      dataAcao={`${acao.dia} de ${acao.mes} de ${acao.ano}`}
-                      duracao={`${acao.inicio} - ${acao.termino}`}
-                      endereco={`${acao.logradouro || acao.endereco}, ${acao.numero} - ${acao.bairro}`}
+             {/* ... Lista de Ações ... */}
+             {filteredAcoes?.map((acao: any) => (
+                 <div key={acao.id} onClick={() => navigate(`/ong/${acao.ongId}/acoes/${acao.id}`)}>
+                    <CardAcao 
+                        {...acao}
+                        image={`${serverURI}/v1/acoes/${acao.id}/banner`}
+                        nomeOng={acao.nomeOng || ongList?.find((o:any) => o.id === acao.ongId)?.nome}
                     />
-                  </div>
-               )
-            })}
+                 </div>
+             ))}
           </TabsContent>
 
         </Tabs>
