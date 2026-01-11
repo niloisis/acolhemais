@@ -195,55 +195,56 @@ class ONGRepository {
 
     // Agora aceita location, category (Causa) e target (Público Alvo)
     // Agora aceita arrays de string ou undefined
-    async findAll(filters?: { location?: string, category?: string[], target?: string[] }) {
+    async findAll(filters?: { location?: string[], category?: string[], target?: string[], search?: string }) {
         
         const whereClause: any = {};
 
-        // 1. Localização (Busca parcial)
-        if (filters?.location) {
-            whereClause.endereco = {
-                contains: filters.location,
+        // 1. Busca Textual (Nome da ONG)
+        if (filters?.search) {
+            whereClause.nome = {
+                contains: filters.search
             };
         }
 
-        // 2. Causa (Necessidade) - Lógica "IN" (OR)
-        // Se a ONG tiver ALGUMA das necessidades da lista, ela aparece.
+        // 2. Localização (Bairros) - Lógica OR
+        if (filters?.location && filters.location.length > 0) {
+            whereClause.OR = filters.location.map(loc => ({
+                endereco: { contains: loc }
+            }));
+        }
+
+        // 3. Causas - Lógica IN
         if (filters?.category && filters.category.length > 0) {
             whereClause.ongNecessidade = {
                 some: {
-                    necessidade: {
-                        tipo: { in: filters.category } // <--- MUDANÇA AQUI
-                    }
+                    necessidade: { tipo: { in: filters.category } }
                 }
             };
         }
 
-        // 3. Público Alvo - Lógica "IN" (OR)
+        // 4. Público Alvo - Lógica IN
         if (filters?.target && filters.target.length > 0) {
             whereClause.ongPublicoAlvo = {
                 some: {
-                    publicoAlvo: {
-                        tipo: { in: filters.target } // <--- MUDANÇA AQUI
-                    }
+                    publicoAlvo: { tipo: { in: filters.target } }
                 }
             };
         }
 
-        try {
-            return await db.ong.findMany({
-                where: whereClause,
-                include: {
-                    ongNecessidade: { include: { necessidade: true } },
-                    ongPublicoAlvo: { include: { publicoAlvo: true } },
-                    ongContato: { include: { tipoContato: true } },
-                    ongImage: true,
-                    bairro: true
-                },
-            });
-        } catch (error) {
-            console.error(error);
-            throw error;
-        }
+        return db.ong.findMany({
+            where: whereClause,
+            include: {
+                ongNecessidade: { include: { necessidade: true } },
+                ongPublicoAlvo: { include: { publicoAlvo: true } },
+                // Não precisamos incluir contato agora se não for exibir na lista, 
+                // mas vamos manter para o card funcionar
+                ongContato: { include: { tipoContato: true } }, 
+                ongImage: true,
+                bairro: true
+            },
+            // Limitamos a 50 para não travar se tiver mil ONGs (paginação futura)
+            take: 50 
+        });
     }
 
     // Métodos adicionais (Logo, Contato, Delete)

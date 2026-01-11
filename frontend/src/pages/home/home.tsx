@@ -25,12 +25,10 @@ export default function HomePage() {
     async () => {
         const params = new URLSearchParams();
 
-        // Se o usuário está USANDO FILTROS MANUAIS, ignoramos a recomendação e usamos o filtro normal
         const hasManualFilters = searchTerm || selectedCauses.length > 0 || selectedRegions.length > 0 || selectedTargets.length > 0;
         
+        // MODO RECOMENDAÇÃO (Algoritmo)
         if (!hasManualFilters && triageData) {
-            // --- MODO RECOMENDAÇÃO (ALGORITMO) ---
-            // Envia POST para o endpoint de recomendação
             const res = await api.post("/v1/recommend", {
                 userLat: triageData.lat,
                 userLon: triageData.lon,
@@ -38,10 +36,17 @@ export default function HomePage() {
             });
             return res.data;
         } else {
-            // --- MODO CLÁSSICO (FILTROS) ---
-            if(searchTerm) params.append("location", searchTerm);
+            // MODO CLÁSSICO (Filtros Manuais)
+            
+            // 1. Busca por Nome (Texto)
+            // Backend deve esperar 'search' ou 'nome' para filtrar pelo nome da ONG
+            if(searchTerm) params.append("search", searchTerm); 
+
+            // 2. Filtro de Bairro (Localização/Proximidade)
+            if(selectedRegions.length > 0) params.append("location", selectedRegions.join(','));
+
+            // 3. Outros filtros
             if(selectedCauses.length > 0) params.append("category", selectedCauses.join(','));
-            if(selectedRegions.length > 0 && !searchTerm) params.append("location", selectedRegions.join(','));
             if(selectedTargets.length > 0) params.append("target", selectedTargets.join(','));
 
             const res = await api.get(`/v1/ong?${params.toString()}`);
@@ -53,14 +58,15 @@ export default function HomePage() {
 
   // --- QUERY DE AÇÕES ---
   const { data: acoesList, isLoading: loadingAcoes } = useQuery(
-    // Adicione os filtros na chave do cache para refazer a busca quando mudarem
-    ["acoes", selectedCauses, selectedTargets], 
+    ["acoes", selectedCauses, selectedTargets, selectedRegions, searchTerm], // Adicionado regions e search na chave
     async () => {
         const params = new URLSearchParams();
         
-        // Envia filtros de Causa e Público para o backend filtrar pela ONG
+        // Agora passamos todos os filtros para as ações também
+        if(searchTerm) params.append("search", searchTerm);
         if(selectedCauses.length > 0) params.append("category", selectedCauses.join(','));
         if(selectedTargets.length > 0) params.append("target", selectedTargets.join(','));
+        if(selectedRegions.length > 0) params.append("location", selectedRegions.join(','));
 
         const res = await api.get(`/v1/acoes?${params.toString()}`);
         return res.data;
@@ -92,18 +98,12 @@ export default function HomePage() {
   };
 
 
-  // --- FILTRO VISUAL DE AÇÕES (Apenas Texto e Região) ---
-  // Causa e Público agora já vêm filtrados do banco, então removemos essa lógica daqui.
+  // --- FILTRO VISUAL DE AÇÕES (Backup Client-Side) ---
+  // Mantemos isso caso o backend de ações ainda não esteja 100% filtrando tudo,
+  // mas o ideal é que o backend faça o trabalho pesado.
   const filteredAcoes = acoesList?.filter((acao: any) => {
-    // 1. Texto (Nome da Ação)
-    const matchesSearch = acao.nome.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    // 2. Região (Endereço da Ação)
-    // Mantemos no front pois a ação tem endereço próprio, independente da ONG
-    const matchesRegion = selectedRegions.length === 0 || 
-        selectedRegions.some(region => acao.endereco?.toLowerCase().includes(region.toLowerCase()));
-    
-    return matchesSearch && matchesRegion;
+    // Se o backend já filtrou, isso aqui só garante
+    return true; 
   });
 
   if (loadingOngs || loadingAcoes) {
@@ -156,17 +156,17 @@ export default function HomePage() {
 
           <TabsContent value="ONGs" className="space-y-4 mt-0">
             {ongList?.length === 0 && (
-              <p className="text-gray-500 text-center py-48">Nenhuma ONG encontrada com esses filtros.</p>
+              <p className="text-gray-500 text-center py-48">Nenhuma ONG foi encontrada.</p>
             )}
 
-            {/* FEEDBACK VISUAL DO MODO RECOMENDAÇÃO */}
+            {/* FEEDBACK VISUAL DO MODO RECOMENDAÇÃO*/}
             {triageData && !searchTerm && selectedCauses.length === 0 && selectedRegions.length === 0 && (
                 <div className=" mx-auto -mt-2">
                     <div className="mt-4 px-4 bg-blue-50 border border-blue-100 rounded-[16px] p-3 text-sm text-blue-800 flex items-center gap-2">
                         ✨ Exibindo ONGs próximas ao bairro:<strong>{triageData.addressLabel}</strong>
                     </div>
                 </div>
-            )}  
+            )}
 
             {ongList?.map((ong: any) => (
               <div key={ong.id} className="cursor-pointer hover:scale-[1.01] transition-transform" 
@@ -178,6 +178,7 @@ export default function HomePage() {
                   descricao={ong.descricao}
                   publicoAlvo={ong.publico_alvo?.map((p: any) => p.tipo) || []}
                   necessidades={ong.necessidades?.map((n: any) => n.tipo) || []}
+                  referencia={ong.referencia}
                 />
               </div>
             ))}
@@ -188,14 +189,14 @@ export default function HomePage() {
               <p className="text-gray-500 text-center py-48">Nenhuma ação encontrada.</p>
             )}
 
-            {/* FEEDBACK VISUAL DO MODO RECOMENDAÇÃO */}
+            {/* FEEDBACK VISUAL DO MODO RECOMENDAÇÃO}
             {triageData && !searchTerm && selectedCauses.length === 0 && selectedRegions.length === 0 && (
                 <div className=" mx-auto  -mt-2">
                     <div className="mt-4 px-4 bg-blue-50 border border-blue-100 rounded-[16px] p-3 text-sm text-blue-800 flex items-center gap-2">
                         ✨ Exibindo eventos próximos ao bairro:<strong>{triageData.addressLabel}</strong>
                     </div>
                 </div>
-            )}
+            )*/}
             
             {filteredAcoes?.map((acao: any) => {
                const ongName = acao.nomeOng || ongList?.find((o:any) => o.id === acao.ongId)?.nome;

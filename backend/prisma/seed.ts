@@ -2,84 +2,119 @@ import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
-// --- 1. LISTAS DE DADOS ---
-
-// Bairros do Recife
-const bairrosRecife = [
-  "Aflitos", "Afogados", "Água Fria", "Alto do Mandu", "Alto José do Pinho", 
-  "Alto José Bonifácio", "Alto Santa Terezinha", "Apipucos", "Areias", "Arruda", 
-  "Barro", "Beberibe", "Benfica", "Boa Viagem", "Boa Vista", "Bomba do Hemetério", 
-  "Bongi", "Brasília Teimosa", "Brejo da Guabiraba", "Brejo de Beberibe", 
-  "Cabanga", "Caçote", "Cajueiro", "Campina do Barreto", "Campo Grande", 
-  "Casa Amarela", "Casa Forte", "Caxangá", "Cidade Universitária", "Coelhos", 
-  "Cohab", "Coqueiral", "Cordeiro", "Curado", "Derby", "Dois Irmãos", 
-  "Dois Unidos", "Encruzilhada", "Engenho do Meio", "Espinheiro", "Estância", 
-  "Fundão", "Graças", "Guabiraba", "Hipódromo", "Ibura", "Ilha do Leite", 
-  "Ilha do Retiro", "Ilha Joana Bezerra", "Imbiribeira", "Ipsep", "Iputinga", 
-  "Jaqueira", "Jardim São Paulo", "Jiquiá", "Jordão", "Linha do Tiro", 
-  "Macaxeira", "Madalena", "Mangabeira", "Mangueira", "Manguinhos", 
-  "Monteiro", "Morro da Conceição", "Mustardinha", "Nova Descoberta", "Paissandu", 
-  "Parnamirim", "Passarinho", "Pau Ferro", "Peixinhos", "Pina", "Poço da Panela", 
-  "Ponto de Parada", "Porto da Madeira", "Prado", "Recife (Bairro do Recife)", 
-  "Rosarinho", "San Martin", "Sancti Spiritus", "Santana", "Santo Amaro", 
-  "Santo Antônio", "São José", "Sítio dos Pintos", "Soledade", "Tamarineira", 
-  "Tejipió", "Torre", "Torreão", "Torrões", "Totó", "Várzea", "Vasco da Gama", 
-  "Zumbi"
-];
-
-// Causas / Necessidades (Mesma lista do Frontend)
-const necessidadesOptions = [
-    "Assistência Social", "Educação", "Saúde", "Saúde Mental", 
-    "Meio Ambiente", "Combate à Pobreza", "Cultura e Arte", 
-    "Igualdade de Gênero", "Direitos Humanos", "Justiça Social", 
-    "Esporte e Lazer", "Desenvolvimento Comunitário", "Emergências", "Emprego"
-];
-
-// Públicos Alvo (Mesma lista do Frontend)
-const publicoAlvoOptions = [
-    "Crianças", "Adolescentes", "Adultos", "Idosos", "Homens", 
-    "Mulheres", "Animais", "População negra", "População Indígena", 
-    "LGBTQIA+", "Pessoas com Deficiência"
-];
-
-// --- 2. FUNÇÃO PRINCIPAL ---
-
 async function main() {
-  console.log('🌱 Iniciando seed do banco de dados...')
+  console.log('🌱 Iniciando o seed...')
 
-  // A. Seed de Bairros
-  console.log('📍 Populando Bairros...')
-  for (const bairro of bairrosRecife) {
-    await prisma.bairro.upsert({
-      where: { nome: bairro },
+  // 1. NECESSIDADES (CAUSAS)
+  const necessidades = [
+    "🍞 Alimentos",
+    "🚿 Higiene",
+    "📚 Educação",
+    "🏥 Saúde",
+    "🧠 Saúde Mental",
+    "🤝 Comunidade",
+    "🌱 Meio Ambiente",
+    "🎨 Arte e Lazer",
+    "⚧️ Igualdade de Gênero",
+    "🧑‍⚖️ Direitos e Justiça",
+    "🚨 Emergências",
+    "💼 Emprego"
+  ];
+
+  for (const tipo of necessidades) {
+    await prisma.necessidade.upsert({
+      where: { tipo },
       update: {},
+      create: { tipo },
+    })
+  }
+
+  // 2. PÚBLICO ALVO
+  const publicoAlvo = [
+    "👨‍👩‍👧‍👦 Todas as idades",
+    "🧒 Crianças",
+    "🧑‍🎓 Adolescentes",
+    "🧑 Adultos",
+    "👵 Idosos",
+    "♀️ Mulheres",
+    "🏳️‍🌈 LGBTQIA+",
+    "✊🏿 População negra",
+    "🌿 População Indígena",
+    "♿ Pessoas com Deficiência",
+    "🧩 Neurodivergentes"
+  ];
+
+  for (const tipo of publicoAlvo) {
+    await prisma.publicoAlvo.upsert({
+      where: { tipo },
+      update: {},
+      create: { tipo },
+    })
+  }
+
+  // 3. TIPOS DE CONTATO
+  const tiposContato = ["Instagram", "WhatsApp", "Facebook", "Site", "Email", "Telefone"];
+
+  for (const tipo of tiposContato) {
+    await prisma.tipoContato.upsert({
+      where: { tipo },
+      update: {},
+      create: { tipo },
+    })
+  }
+
+  // 4. BAIRROS DO RECIFE (Com Lat/Lon reais)
+  // Dados aproximados do centro de cada bairro
+  const bairros = [
+    { nome: "Recife Antigo", lat: -8.063169, lon: -34.871139 },
+    { nome: "Boa Viagem", lat: -8.1122, lon: -34.8942 },
+    { nome: "Pina", lat: -8.0963, lon: -34.8864 },
+    { nome: "Várzea", lat: -8.0370, lon: -34.9570 },
+    { nome: "Caxangá", lat: -8.0311, lon: -34.9654 },
+    { nome: "Casa Forte", lat: -8.0346, lon: -34.9197 },
+    { nome: "Casa Amarela", lat: -8.0244, lon: -34.9125 },
+    { nome: "Apipucos", lat: -8.0205, lon: -34.9358 },
+    { nome: "Espinheiro", lat: -8.0438, lon: -34.8931 },
+    { nome: "Aflitos", lat: -8.0433, lon: -34.8980 },
+    { nome: "Graças", lat: -8.0468, lon: -34.9015 },
+    { nome: "Derby", lat: -8.0569, lon: -34.8997 },
+    { nome: "Madalena", lat: -8.0526, lon: -34.9103 },
+    { nome: "Torre", lat: -8.0454, lon: -34.9150 },
+    { nome: "Cordeiro", lat: -8.0537, lon: -34.9298 },
+    { nome: "Iputinga", lat: -8.0392, lon: -34.9387 },
+    { nome: "Santo Amaro", lat: -8.0489, lon: -34.8819 },
+    { nome: "Boa Vista", lat: -8.0583, lon: -34.8879 },
+    { nome: "Encruzilhada", lat: -8.0335, lon: -34.8967 },
+    { nome: "Rosarinho", lat: -8.0318, lon: -34.8991 },
+    { nome: "Tamarineira", lat: -8.0287, lon: -34.9042 },
+    { nome: "Jaqueira", lat: -8.0357, lon: -34.9048 },
+    { nome: "Campo Grande", lat: -8.0249, lon: -34.8845 },
+    { nome: "Arruda", lat: -8.0202, lon: -34.8906 },
+    { nome: "Bomba do Hemetério", lat: -8.0260, lon: -34.9080 },
+    { nome: "Beberibe", lat: -8.0068, lon: -34.8974 },
+    { nome: "Dois Irmãos", lat: -8.0175, lon: -34.9458 },
+    { nome: "Imbiribeira", lat: -8.1065, lon: -34.9101 },
+    { nome: "Ipsep", lat: -8.1132, lon: -34.9248 },
+    { nome: "Ibura", lat: -8.1287, lon: -34.9431 },
+    { nome: "Afogados", lat: -8.0772, lon: -34.9095 },
+    { nome: "San Martin", lat: -8.0694, lon: -34.9302 }
+
+  ];
+
+  for (const bairro of bairros) {
+    await prisma.bairro.upsert({
+      where: { nome: bairro.nome },
+      update: {
+          lat: bairro.lat,
+          lon: bairro.lon
+      },
       create: {
-        nome: bairro,
+        nome: bairro.nome,
+        lat: bairro.lat,
+        lon: bairro.lon,
         cidade: "Recife",
         estado: "PE"
       },
-    })
-  }
-
-  // B. Seed de Necessidades (Causas)
-  console.log('❤️ Populando Necessidades (Causas)...')
-  for (const tipo of necessidadesOptions) {
-    // Assumindo que seu model se chama 'Necessidade' e o campo único é 'tipo'
-    await prisma.necessidade.upsert({
-      where: { tipo: tipo },
-      update: {},
-      create: { tipo: tipo },
-    })
-  }
-
-  // C. Seed de Público Alvo
-  console.log('👥 Populando Público Alvo...')
-  for (const tipo of publicoAlvoOptions) {
-    // Assumindo que seu model se chama 'PublicoAlvo' e o campo único é 'tipo'
-    await prisma.publicoAlvo.upsert({
-      where: { tipo: tipo },
-      update: {},
-      create: { tipo: tipo },
     })
   }
 
@@ -91,7 +126,7 @@ main()
     await prisma.$disconnect()
   })
   .catch(async (e) => {
-    console.error('❌ Erro no seed:', e)
+    console.error(e)
     await prisma.$disconnect()
     process.exit(1)
   })

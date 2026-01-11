@@ -8,6 +8,8 @@ import ONGContactRepository from "../repositories/ONGContactRepository";
 import {BUCKET_NAME, minioClient} from "../minio";
 import ONGUpdateDto from "../repositories/dto/ONGUpdateDto";
 import jwt from "jsonwebtoken";
+import { getDistanceFromLatLonInKm } from "../utils/GeometryUtils";
+import LookupRepository from "../repositories/LookupRepository";
 
 export default class ONGController {
 
@@ -189,7 +191,7 @@ export default class ONGController {
         )
     }*/
 
-    static async findAll(req: Request, res: Response): Promise<any> {
+    /*static async findAll(req: Request, res: Response): Promise<any> {
         try {
             const { location, category, target } = req.query;
 
@@ -212,6 +214,86 @@ export default class ONGController {
         } catch (error) {
             console.error("Erro no Controller findAll:", error);
             return res.status(500).json(basicError("Erro ao buscar ONGs"));
+        }
+    }*/
+
+    static async findAll(req: Request, res: Response): Promise<any> {
+        try {
+            const { location, search, category, target } = req.query; // Adicionei 'search' aqui
+
+            // Normaliza os filtros para Array, removendo strings vazias
+            const toArray = (p: any) => (!p ? [] : Array.isArray(p) ? p.map(String) : String(p).split(',').filter(x => x.trim() !== ''));
+            
+            const locations = toArray(location);
+            const categories = toArray(category);
+            const targets = toArray(target);
+            const searchTerm = search ? String(search) : undefined;
+
+            // 1. Busca as ONGs no banco
+            const ongs = await ONGRepository.findAll({
+                location: locations,
+                category: categories,
+                target: targets,
+                search: searchTerm
+            });
+
+            // 2. Se NÃO tiver filtro de localização, retorna rápido (Performance)
+            if (locations.length === 0) {
+                return res.status(200).json(ONGMapper.toCompleteResponseList(ongs));
+            }
+
+            // 3. LÓGICA DE PROXIMIDADE (Só roda se tiver filtro de local)
+            const bairrosAncoras = await LookupRepository.findBairrosByNames(locations);
+
+            const processedOngs = ongs.map((ong: any) => {
+                let bairroMaisProximo = null;
+                let menorDistancia = Infinity;
+
+                // Só calcula se a ONG e o Bairro tiverem coordenadas válidas
+                if (ong.lat && ong.lon) {
+                    bairrosAncoras.forEach((bairro) => {
+                        if (bairro.lat && bairro.lon) {
+                            try {
+                                const dist = getDistanceFromLatLonInKm(
+                                    Number(ong.lat), Number(ong.lon),
+                                    Number(bairro.lat), Number(bairro.lon)
+                                );
+                                
+                                // Se for mais perto que o anterior e menor que 5km (ajuste conforme necessidade)
+                                if (dist < menorDistancia) {
+                                    menorDistancia = dist;
+                                    bairroMaisProximo = bairro.nome;
+                                }
+                            } catch (err) {
+                                // Ignora erro de cálculo em caso de dados corrompidos
+                            }
+                        }
+                    });
+                }
+
+                return {
+                    ...ong,
+                    referenciaProximidade: bairroMaisProximo
+                };
+            });
+            
+            // Ordena: ONGs com referência de proximidade aparecem primeiro
+            processedOngs.sort((a: any, b: any) => {
+                if (a.referenciaProximidade && !b.referenciaProximidade) return -1;
+                if (!a.referenciaProximidade && b.referenciaProximidade) return 1;
+                return 0;
+            });
+
+            return res.status(200).json(
+                processedOngs.map((ong: any) => ({
+                    ...ONGMapper.toCompleteResponse(ong),
+                    referencia: ong.referenciaProximidade
+                }))
+            );
+
+        } catch (error) {
+            console.error("ERRO CRÍTICO NO ONGCONTROLLER:", error); // Isso vai mostrar o erro real no seu terminal
+            return res.status(500).json(basicError("Erro ao processar lista de ONGs"));
         }
     }
 

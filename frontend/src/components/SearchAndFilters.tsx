@@ -1,4 +1,4 @@
-import { Search, MapPin, Heart, Users, X, Trash2 } from "lucide-react";
+import { Search, MapPin, Heart, Users, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -65,10 +65,9 @@ export const SearchAndFilters = ({
 
   const hasActiveFilters = selectedCauses.length > 0 || selectedRegions.length > 0 || selectedTargets.length > 0 || searchTerm.length > 0;
 
-  // Estilo inline para esconder scrollbar em navegadores Webkit (Chrome/Safari) e Firefox
   const hideScrollStyle = {
-    msOverflowStyle: 'none' as const,  /* IE and Edge */
-    scrollbarWidth: 'none' as const,  /* Firefox */
+    msOverflowStyle: 'none' as const,
+    scrollbarWidth: 'none' as const,
   };
 
   return (
@@ -83,21 +82,16 @@ export const SearchAndFilters = ({
           placeholder="Pesquisar por nome..."
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="pl-10 rounded-full border-gray-200 bg-gray-50 h-12 text-sm placeholder:text-sm focus-visible:ring-blue-600 shadow-sm w-full"
+          className="pl-10 rounded-full border-gray-200 bg-gray-50 h-12 text-sm placeholder:text-sm focus-visible:ring-blue-600 shadow-sm w-full transition-shadow hover:shadow-md"
         />
       </div>
 
-      {/* Área dos Filtros (Carrossel Horizontal) 
-          - flex-nowrap: Impede a quebra de linha
-          - overflow-x-auto: Permite rolar lateralmente
-          - -mx-4 px-4: Expande a área de rolagem até a borda da tela (mobile feel)
-      */}
+      {/* Área dos Filtros */}
       <div 
         className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0"
-        style={hideScrollStyle} // Aplica o estilo para esconder a barra
+        style={hideScrollStyle}
       >
         <style>{`
-            /* Esconde scrollbar no Chrome/Safari/Webkit */
             div::-webkit-scrollbar {
                 display: none;
             }
@@ -108,10 +102,10 @@ export const SearchAndFilters = ({
             <DropdownMenuTrigger asChild>
                 <Button 
                     variant="outline" 
-                    className={`h-9 rounded-full text-xs font-medium border-dashed flex-shrink-0 transition-all
+                    className={`h-9 rounded-full text-xs font-medium border-dashed flex-shrink-0 transition-all duration-200 active:scale-95
                     ${selectedCauses.length > 0 
-                        ? "bg-red-50 border-red-200 text-red-700" 
-                        : "border-gray-300 text-gray-600 hover:bg-gray-50"}`}
+                        ? "bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 data-[state=open]:bg-red-100" 
+                        : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900 data-[state=open]:bg-gray-100"}`}
                 >
                     <Heart className={`w-3 h-3 mr-1.5 ${selectedCauses.length > 0 ? "fill-red-700 text-red-700" : "text-gray-500"}`} />
                     Causas
@@ -122,15 +116,16 @@ export const SearchAndFilters = ({
                     )}
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56 bg-white max-h-80 overflow-y-auto" align="start">
-                <DropdownMenuLabel>Filtrar por Causa</DropdownMenuLabel>
-                <DropdownMenuSeparator />
+            {/* Adicionado p-1 para diminuir a borda interna */}
+            <DropdownMenuContent className="w-56 bg-white max-h-80 rounded-[16px] overflow-y-auto p-1 shadow-lg border-gray-100" align="start">
+                <DropdownMenuLabel className="px-2 py-1.5">Filtrar por Causa</DropdownMenuLabel>
+                <DropdownMenuSeparator className="-mx-1 my-1" />
                 {causasOptions.map((causa) => (
                     <DropdownMenuCheckboxItem
                         key={causa}
                         checked={selectedCauses.includes(causa)}
                         onCheckedChange={() => onCauseChange(causa)}
-                        className="cursor-pointer"
+                        className="cursor-pointer rounded-lg mx-1 my-0.5 focus:bg-gray-50"
                     >
                         {causa}
                     </DropdownMenuCheckboxItem>
@@ -143,10 +138,10 @@ export const SearchAndFilters = ({
             <DropdownMenuTrigger asChild>
                 <Button 
                     variant="outline" 
-                    className={`h-9 rounded-full text-xs font-medium border-dashed flex-shrink-0 transition-all
+                    className={`h-9 rounded-full text-xs font-medium border-dashed flex-shrink-0 transition-all duration-200 active:scale-95
                     ${selectedTargets.length > 0 
-                        ? "bg-green-50 border-green-200 text-green-700" 
-                        : "border-gray-300 text-gray-600 hover:bg-gray-50"}`}
+                        ? "bg-green-50 border-green-200 text-green-700 hover:bg-green-100 hover:border-green-300 data-[state=open]:bg-green-100" 
+                        : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900 data-[state=open]:bg-gray-100"}`}
                 >
                     <Users className={`w-3 h-3 mr-1.5 ${selectedTargets.length > 0 ? "fill-green-700 text-green-700" : "text-gray-500"}`} />
                     Público
@@ -157,15 +152,16 @@ export const SearchAndFilters = ({
                     )}
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56 bg-white max-h-80 overflow-y-auto" align="start">
-                <DropdownMenuLabel>Filtrar por Público</DropdownMenuLabel>
-                <DropdownMenuSeparator />
+            {/* Adicionado p-1 para diminuir a borda interna */}
+            <DropdownMenuContent className="w-56 bg-white max-h-80 rounded-[16px] overflow-y-auto p-1 shadow-lg border-gray-100" align="start">
+                <DropdownMenuLabel className="px-2 py-1.5">Filtrar por Público</DropdownMenuLabel>
+                <DropdownMenuSeparator className="-mx-1 my-1" />
                 {publicoOptions.map((publico) => (
                     <DropdownMenuCheckboxItem
                         key={publico}
                         checked={selectedTargets.includes(publico)}
                         onCheckedChange={() => onTargetChange(publico)}
-                        className="cursor-pointer"
+                        className="cursor-pointer rounded-lg mx-1 my-0.5 focus:bg-gray-50"
                     >
                         {publico}
                     </DropdownMenuCheckboxItem>
@@ -178,10 +174,10 @@ export const SearchAndFilters = ({
             <DropdownMenuTrigger asChild>
                 <Button 
                     variant="outline" 
-                    className={`h-9 rounded-full text-xs font-medium border-dashed flex-shrink-0 transition-all
+                    className={`h-9 rounded-full text-xs font-medium border-dashed flex-shrink-0 transition-all duration-200 active:scale-95
                     ${selectedRegions.length > 0 
-                        ? "bg-blue-50 border-blue-200 text-blue-700" 
-                        : "border-gray-300 text-gray-600 hover:bg-gray-50"}`}
+                        ? "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 data-[state=open]:bg-blue-100" 
+                        : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900 data-[state=open]:bg-gray-100"}`}
                 >
                     <MapPin className={`w-3 h-3 mr-1.5 ${selectedRegions.length > 0 ? "fill-blue-700 text-blue-700" : "text-gray-500"}`} />
                     Localização
@@ -192,15 +188,16 @@ export const SearchAndFilters = ({
                     )}
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56 bg-white max-h-80 overflow-y-auto" align="start">
-                <DropdownMenuLabel>Filtrar por Bairro</DropdownMenuLabel>
-                <DropdownMenuSeparator />
+            {/* Adicionado p-1 para diminuir a borda interna */}
+            <DropdownMenuContent className="w-56 bg-white max-h-80 overflow-y-auto rounded-[16px] p-1 shadow-lg border-gray-100" align="start">
+                <DropdownMenuLabel className="px-2 py-1.5">Filtrar por Bairro</DropdownMenuLabel>
+                <DropdownMenuSeparator className="-mx-1 my-1" />
                 {bairrosOptions.map((bairro) => (
                     <DropdownMenuCheckboxItem
                         key={bairro}
                         checked={selectedRegions.includes(bairro)}
                         onCheckedChange={() => onRegionChange(bairro)}
-                        className="cursor-pointer"
+                        className="cursor-pointer rounded-lg my-0.5 focus:bg-gray-50"
                     >
                         {bairro}
                     </DropdownMenuCheckboxItem>
@@ -208,17 +205,16 @@ export const SearchAndFilters = ({
             </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Botão Limpar (Último item do scroll, aparece só se necessário) */}
+        {/* Botão Limpar */}
         {hasActiveFilters && (
             <>
-                {/* Uma barra vertical sutil para separar os filtros do botão limpar */}
                 <div className="h-6 w-px bg-gray-200 mx-1 flex-shrink-0" />
 
                 <Button 
                     variant="ghost"
                     size="sm" 
                     onClick={onClear}
-                    className="h-9 rounded-full text-xs text-red-600 hover:text-red-700 hover:bg-red-50 flex-shrink-0 px-2"
+                    className="h-9 rounded-full text-xs text-red-600 hover:text-red-700 hover:bg-red-50 active:bg-red-100 flex-shrink-0 px-3 transition-colors duration-200"
                 >
                     <Trash2 className="w-3 h-3 mr-1" /> 
                     Limpar
@@ -226,7 +222,6 @@ export const SearchAndFilters = ({
             </>
         )}
         
-        {/* Espaçador final para garantir que o último item não cole na borda direita */}
         <div className="w-2 flex-shrink-0" />
       </div>
     </div>

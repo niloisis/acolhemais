@@ -207,17 +207,17 @@ export default function LoginApp() {
                     <Button 
                         variant="secondary" 
                         className="h-14 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold rounded-xl text-lg justify-center shadow-sm"
-                        onClick={() => navigate("/")}
+                        onClick={() => navigate("/ong/register")}
                     >
-                        Sou Beneficiário
+                        Sou ONG
                     </Button>
                     
                     <Button 
                         variant="outline" 
                         className="h-14 border-2 border-gray-100 hover:bg-blue-50 text-gray-700 font-semibold rounded-xl text-lg justify-center shadow-sm"
-                        onClick={() => navigate("/ong/register")}
+                        onClick={() => navigate("/")}
                     >
-                        Sou ONG
+                        Sou beneficiário
                     </Button>
                   </div>
               </DialogContent>
