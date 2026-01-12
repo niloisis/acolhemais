@@ -10,6 +10,7 @@ import { useState } from "react";
 import { FaInstagram, FaPhone, FaWhatsapp, FaGlobe } from "react-icons/fa";
 import { FiCalendar } from "react-icons/fi";
 import { ReadAloudBtn } from "@/components/ui/ReadAloudBtn"; 
+import { MapPin } from "lucide-react"; 
 
 export default function OngProfile() {
     const { id } = useParams();
@@ -17,27 +18,86 @@ export default function OngProfile() {
     
     const [logoTimestamp] = useState(Date.now()); 
 
+    // --- FUNÇÃO PARA PEGAR LOCALIZAÇÃO ---
+    const getUserLocationParams = () => {
+        const params = new URLSearchParams();
+        const storedRegions = sessionStorage.getItem("filter_regions");
+        if (storedRegions) {
+            const regions = JSON.parse(storedRegions);
+            if (regions.length > 0) params.append("location", regions.join(','));
+        }
+        if (!params.has("location")) {
+            const savedTriage = localStorage.getItem("user_triage");
+            if (savedTriage) {
+                const data = JSON.parse(savedTriage);
+                if (data.lat && data.lon) {
+                    params.append("userLat", data.lat);
+                    params.append("userLon", data.lon);
+                }
+            }
+        }
+        return params.toString();
+    };
+
     const { data: ongData, isLoading } = useQuery(["ong_profile_public", id], async () => {
-        const res = await api.get(`/v1/ong/${id}`);
+        const queryParams = getUserLocationParams();
+        const res = await api.get(`/v1/ong/${id}?${queryParams}`);
         return res.data;
     });
 
     if (isLoading || !ongData) return <ProfileSkeleton />;
 
-    // Helpers
     const formatDate = (dateString: string | number) => {
         if (!dateString) return "Data não informada";
         if (typeof dateString === 'number') return `Desde ${dateString}`;
         return `Desde ${new Date(dateString).toLocaleDateString('pt-BR')}`;
     };
 
+    // --- 1. CORREÇÃO DOS ÍCONES ---
     const getIcon = (type: string) => {
-        switch (type) {
+        // Normaliza para maiúsculo para garantir o match
+        const upperType = type ? type.toUpperCase() : "";
+
+        switch (upperType) {
             case "INSTAGRAM": return <FaInstagram className="text-pink-600" />;
             case "WHATSAPP": return <FaWhatsapp className="text-green-500" />;
             case "TELEFONE": return <FaPhone className="text-gray-600" />;
             case "SITE": return <FaGlobe className="text-blue-500" />;
+            case "EMAIL": 
             default: return <MdOutlineEmail className="text-gray-600" />;
+        }
+    };
+
+    // --- 2. LÓGICA DE LINK CLICÁVEL ---
+    const getContactLink = (type: string, value: string) => {
+        const upperType = type ? type.toUpperCase() : "";
+        const cleanValue = value.trim();
+
+        switch (upperType) {
+            case "EMAIL":
+                return `mailto:${cleanValue}`;
+            
+            case "WHATSAPP":
+                // Remove tudo que não for número
+                const numbersOnly = cleanValue.replace(/\D/g, '');
+                // Adiciona 55 (Brasil) se não tiver, assumindo número com DDD (10 ou 11 dígitos)
+                const fullNumber = numbersOnly.length <= 11 ? `55${numbersOnly}` : numbersOnly;
+                return `https://wa.me/${fullNumber}`;
+            
+            case "TELEFONE":
+                return `tel:${cleanValue.replace(/\D/g, '')}`;
+            
+            case "INSTAGRAM":
+                // Remove @ se tiver e espaços
+                const username = cleanValue.replace('@', '').replace('https://instagram.com/', '').replace('/', '');
+                return `https://instagram.com/${username}`;
+            
+            case "SITE":
+                // Garante que tenha http/https
+                return cleanValue.startsWith('http') ? cleanValue : `https://${cleanValue}`;
+            
+            default:
+                return "#";
         }
     };
 
@@ -47,14 +107,15 @@ export default function OngProfile() {
         </svg>
     );
 
-    // --- 1. MONTAGEM DO TEXTO PARA LEITURA ---
-    // Ordem: Nome -> Atua com -> Sobre -> Desde -> Local -> Contatos
-    
     const tagsTexto = [...ongData.publico_alvo, ...ongData.necessidades].map(t => t.tipo).join(", ");
     
     const contatosTexto = ongData.contatos.length > 0 
         ? ongData.contatos.map((c: any) => `${c.tipo}: ${c.valor}`).join(". ")
         : "Nenhum contato informado";
+
+    const distanciaTexto = ongData.distancia && ongData.distancia !== '--' 
+        ? `Fica a ${ongData.distancia} de ${ongData.pontoReferencia || 'sua localização'}.` 
+        : "";
 
     const textoParaLer = `
         Nome da ONG: ${ongData.nome}. 
@@ -62,20 +123,21 @@ export default function OngProfile() {
         Sobre a ONG: ${ongData.descricao || "Descrição não informada"}. 
         Atua ${formatDate(ongData.data_criacao)}. 
         Localizada em: ${ongData.endereco || "endereço não informado"}. 
+        ${distanciaTexto}
         Contatos: ${contatosTexto}.
     `;
+
+    // Helper para gerar o link do Maps
+    const getMapsLink = (address: string) => {
+        if (!address) return "#";
+        // Codifica o endereço para URL (troca espaços por %20, etc)
+        return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+    };
 
     return (
         <div className="min-h-screen bg-white pb-20 overflow-x-hidden">
             
-            {/* --- MUDANÇA AQUI: BOTÃO FLUTUANTE (FIXED) --- */}
-            {/* fixed: Prende na tela
-                bottom-24: Fica acima do menu inferior (se houver)
-                right-4: Canto direito
-                z-50: Fica por cima de tudo
-            */}
             <div className="fixed bottom-10 right-6 z-50">
-                {/* Wrapper visual para dar destaque (Bola branca com sombra forte) */}
                 <div className="bg-white p-1 rounded-full shadow-xl border-2 border-blue-200">
                     <ReadAloudBtn 
                         textToRead={textoParaLer} 
@@ -84,7 +146,6 @@ export default function OngProfile() {
                 </div>
             </div>
 
-            {/* --- HEADER E CURVA --- */}
             <div className="relative w-full pb-20">
                 <div className="flex -mt-10 justify-between items-center p-6 relative z-20 text-white">
                     <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="text-white hover:bg-blue-700">
@@ -98,7 +159,6 @@ export default function OngProfile() {
                         onClick={() => navigate('/')}
                     />
 
-                    {/* Espaço vazio para manter a logo centralizada */}
                     <div className="w-10"></div>
                 </div>
                 
@@ -107,10 +167,8 @@ export default function OngProfile() {
                 </div>
             </div>
 
-            {/* --- CONTEÚDO PRINCIPAL --- */}
             <div className="flex flex-col items-center relative z-20 px-6 -mt-20">
                 
-                {/* Avatar */}
                 <div className="relative">
                     <Avatar className="w-28 h-28 border-[5px] border-white shadow-lg bg-white">
                         <AvatarImage 
@@ -123,10 +181,8 @@ export default function OngProfile() {
                     </Avatar>
                 </div>
 
-                {/* Nome */}
                 <h1 className="mt-4 text-2xl font-bold text-gray-900 text-center">{ongData.nome}</h1>
 
-                {/* Tags (Pílulas) */}
                 <div className="flex flex-wrap justify-center gap-2 mt-4 max-w-md">
                     {[...ongData.publico_alvo, ...ongData.necessidades].map((tag: any, i: number) => (
                         <span key={i} className="bg-white border border-blue-200 text-blue-700 px-4 py-1.5 rounded-full text-sm font-medium shadow-sm">
@@ -135,7 +191,6 @@ export default function OngProfile() {
                     ))}
                 </div>
 
-                {/* Sobre */}
                 <div className="w-full mt-10 text-left">
                     <h3 className="font-semibold text-gray-900 text-lg mb-3">Sobre</h3>
                     <p className="text-base text-gray-600 leading-relaxed whitespace-pre-line">
@@ -145,18 +200,40 @@ export default function OngProfile() {
 
                 {/* Data e Localização */}
                 <div className="w-full mt-6 flex flex-col gap-3">
+                    {/* Data (Mantém igual) */}
                     <div className="flex items-center gap-3 text-gray-600 text-sm font-medium">
                         <FiCalendar className="text-blue-600 w-5 h-5" />
                         <span>{formatDate(ongData.data_criacao)}</span>
                     </div>
 
-                    <div className="flex items-center gap-3 text-gray-600 text-sm font-medium">
-                        <MdLocationOn className="text-blue-600 w-5 h-5 flex-shrink-0" />
-                        <span className="break-words">{ongData.endereco || "Endereço não informado"}</span>
-                    </div>
+                    {/* --- ENDEREÇO AGORA É UM LINK CLICÁVEL --- */}
+                    <a 
+                        href={getMapsLink(ongData.endereco)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-start gap-3 text-gray-600 text-sm font-medium group hover:text-blue-600 transition-colors cursor-pointer"
+                        title="Abrir no Google Maps"
+                    >
+                        <MdLocationOn className="text-blue-600 w-5 h-5 flex-shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
+                        
+                        <div className="flex flex-col">
+                            <span className="break-words group-hover:underline underline-offset-2">
+                                {ongData.endereco || "Endereço não informado"}
+                            </span>
+                            
+                            {/* Flag de distância (Mantida dentro do link para ser clicável junto) */}
+                            {ongData.distancia && ongData.distancia !== '--' && (
+                                <div className="flex items-center gap-1.5 mt-1.5 text-blue-600 bg-blue-50 px-2 py-1 rounded-md w-fit no-underline">
+                                    <MapPin className="w-3.5 h-3.5" />
+                                    <span className="text-xs font-semibold">
+                                        {ongData.distancia} de {ongData.pontoReferencia || 'sua localização'}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                    </a>
                 </div>
 
-                {/* Galeria */}
                 <div className="w-full mt-10">
                     <h3 className="font-semibold text-gray-900 text-lg mb-4">Galeria</h3>
                     
@@ -170,26 +247,38 @@ export default function OngProfile() {
                     </div>
                 </div>
                 
-                {/* Botão de Ações */}
                 <div className="w-full mt-8">
                     <Button className="w-full bg-blue-600 hover:bg-blue-700 rounded-full h-12 text-base font-semibold shadow-md shadow-blue-200/50 transition-all active:scale-95" onClick={() => navigate(`/ong/${id}/acoes`)}>
                         Ver Ações e Eventos
                     </Button>
                 </div>
 
-                {/* Contatos */}
                 <div className="w-full mt-10 mb-6">
                     <h3 className="font-semibold text-gray-900 text-lg mb-4">Contatos</h3>
                     
                     <div className="space-y-3">
-                        {ongData.contatos?.map((c: any) => (
-                            <div key={c.id} className="flex items-center justify-between bg-white border border-gray-100 p-4 rounded-2xl shadow-sm">
-                                <div className="flex items-center gap-4 text-gray-800 text-base font-medium">
-                                    <div className="text-2xl">{getIcon(c.tipo)}</div>
-                                    <span className="break-all">{c.valor}</span>
-                                </div>
-                            </div>
-                        ))}
+                        {ongData.contatos?.map((c: any) => {
+                            const link = getContactLink(c.tipo, c.valor);
+                            
+                            // --- 3. MUDANÇA PARA TAG 'a' ---
+                            return (
+                                <a 
+                                    key={c.id} 
+                                    href={link}
+                                    target={c.tipo.toUpperCase() !== 'TELEFONE' && c.tipo.toUpperCase() !== 'EMAIL' ? "_blank" : "_self"}
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-between bg-white border border-gray-100 p-4 rounded-2xl shadow-sm hover:shadow-md hover:bg-gray-50 transition-all cursor-pointer group"
+                                >
+                                    <div className="flex items-center gap-4 text-gray-800 text-base font-medium">
+                                        <div className="text-2xl group-hover:scale-110 transition-transform">{getIcon(c.tipo)}</div>
+                                        <span className="break-all group-hover:text-blue-600 transition-colors">{c.valor}</span>
+                                    </div>
+                                    
+                                    {/* Ícone sutil de "link externo" ou "ação" opcional */}
+                                    <span className="text-gray-300 text-xl font-light group-hover:text-blue-400">›</span>
+                                </a>
+                            );
+                        })}
                         {ongData.contatos?.length === 0 && <p className="text-gray-400 text-sm text-center py-4">Nenhum contato cadastrado.</p>}
                     </div>
                 </div>

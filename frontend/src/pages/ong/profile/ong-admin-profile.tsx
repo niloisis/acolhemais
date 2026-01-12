@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button.tsx";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar.tsx";
-import { FiEdit, FiSettings, FiCamera, FiCalendar } from "react-icons/fi"; // Adicionei FiCalendar
+import { FiEdit, FiSettings, FiCamera, FiCalendar } from "react-icons/fi"; 
 import { MdOutlineEmail, MdLocationOn } from "react-icons/md";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "react-query";
@@ -110,19 +110,37 @@ export default function OngAdminProfile() {
         </svg>
     );
 
+    // --- HELPER DE LINKS ---
+    const getContactLink = (type: string, value: string) => {
+        const upperType = type ? type.toUpperCase() : "";
+        const cleanValue = value.trim();
+
+        switch (upperType) {
+            case "EMAIL": return `mailto:${cleanValue}`;
+            case "WHATSAPP":
+                const numbersOnly = cleanValue.replace(/\D/g, '');
+                const fullNumber = numbersOnly.length <= 11 ? `55${numbersOnly}` : numbersOnly;
+                return `https://wa.me/${fullNumber}`;
+            case "TELEFONE": return `tel:${cleanValue.replace(/\D/g, '')}`;
+            case "INSTAGRAM":
+                const username = cleanValue.replace('@', '').replace('https://instagram.com/', '').replace('/', '');
+                return `https://instagram.com/${username}`;
+            case "SITE": return cleanValue.startsWith('http') ? cleanValue : `https://${cleanValue}`;
+            default: return "#";
+        }
+    };
+
     if (isLoading || !ongData) return <ProfileSkeleton />;
 
-    // Helper para formatar data
     const formatDate = (dateString: string | number) => {
         if (!dateString) return "Data não informada";
-        // Se for número (ano), retorna só o ano
         if (typeof dateString === 'number') return `Desde ${dateString}`;
-        // Se for string ISO, formata para PT-BR
         return `Desde ${new Date(dateString).toLocaleDateString('pt-BR')}`;
     };
 
     const getIcon = (type: string) => {
-        switch (type) {
+        const upperType = type ? type.toUpperCase() : "";
+        switch (upperType) {
             case "INSTAGRAM": return <FaInstagram className="text-pink-600" />;
             case "WHATSAPP": return <FaWhatsapp className="text-green-500" />;
             case "TELEFONE": return <FaPhone className="text-gray-600" />;
@@ -215,7 +233,6 @@ export default function OngAdminProfile() {
                     {/* Endereço Completo */}
                     <div className="flex items-start gap-3 text-gray-700 text-sm">
                         <MdLocationOn className="text-blue-600 w-5 h-5 flex-shrink-0 mt-0.5" />
-                        {/* break-words permite que o endereço quebre linha se for longo */}
                         <span className="font-medium break-words leading-snug">
                             {ongData.endereco || "Endereço não cadastrado"}
                         </span>
@@ -281,15 +298,38 @@ export default function OngAdminProfile() {
                         )}
                     </div>
                     <div className="space-y-3">
-                        {ongData.contatos?.map((c: any) => (
-                            <div key={c.id} className="flex items-center justify-between bg-white border border-gray-100 p-4 rounded-2xl shadow-sm">
-                                <div className="flex items-center gap-4 text-gray-800 text-base font-medium">
-                                    <div className="text-2xl">{getIcon(c.tipo)}</div>
-                                    <span className="break-all">{c.valor}</span>
-                                </div>
-                                {isEditMode && <button onClick={() => handleDeleteItem(c.id, 'contact')} className="text-gray-400 hover:text-red-500 transition p-1"><CiCircleRemove size={24} /></button>}
-                            </div>
-                        ))}
+                        {ongData.contatos?.map((c: any) => {
+                            const link = getContactLink(c.tipo, c.valor);
+                            
+                            return (
+                                <a 
+                                    key={c.id} 
+                                    href={link}
+                                    target={c.tipo.toUpperCase() !== 'TELEFONE' && c.tipo.toUpperCase() !== 'EMAIL' ? "_blank" : "_self"}
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-between bg-white border border-gray-100 p-4 rounded-2xl shadow-sm hover:shadow-md hover:bg-gray-50 transition-all group"
+                                >
+                                    <div className="flex items-center gap-4 text-gray-800 text-base font-medium">
+                                        <div className="text-2xl group-hover:scale-110 transition-transform">{getIcon(c.tipo)}</div>
+                                        <span className="break-all group-hover:text-blue-600 transition-colors">{c.valor}</span>
+                                    </div>
+                                    
+                                    {isEditMode ? (
+                                        <button 
+                                            onClick={(e) => {
+                                                e.preventDefault(); // Impede o clique no link
+                                                handleDeleteItem(c.id, 'contact');
+                                            }} 
+                                            className="text-gray-400 hover:text-red-500 transition p-1 z-10"
+                                        >
+                                            <CiCircleRemove size={24} />
+                                        </button>
+                                    ) : (
+                                        <span className="text-gray-300 text-xl font-light group-hover:text-blue-400">›</span>
+                                    )}
+                                </a>
+                            );
+                        })}
                         {ongData.contatos?.length === 0 && <p className="text-gray-400 text-sm text-center py-4">Nenhum contato cadastrado.</p>}
                     </div>
                 </div>

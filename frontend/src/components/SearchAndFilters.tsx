@@ -26,7 +26,7 @@ interface SearchAndFiltersProps {
   onTargetChange: (value: string) => void;
 
   onClear: () => void;
-  onRedoTriage?: () => void; // Prop opcional para refazer a triagem
+  onRedoTriage?: () => void;
 }
 
 export const SearchAndFilters = ({
@@ -55,9 +55,9 @@ export const SearchAndFilters = ({
                 api.get("/v1/publico-alvo")
             ]);
             
-            setCausasOptions(resCausas.data.map((i: any) => i.tipo || i.nome).sort());
-            setBairrosOptions(resBairros.data.map((i: any) => i.nome).sort());
-            setPublicoOptions(resPublico.data.map((i: any) => i.tipo || i.nome).sort());
+            if(Array.isArray(resCausas.data)) setCausasOptions(resCausas.data.map((i: any) => i.tipo || i.nome).sort());
+            if(Array.isArray(resBairros.data)) setBairrosOptions(resBairros.data.map((i: any) => i.nome).sort());
+            if(Array.isArray(resPublico.data)) setPublicoOptions(resPublico.data.map((i: any) => i.tipo || i.nome).sort());
         } catch (error) {
             console.error("Erro ao carregar filtros", error);
         }
@@ -73,9 +73,40 @@ export const SearchAndFilters = ({
   };
 
   return (
-    <div className="flex flex-col gap-4 w-full">
+    <div className="flex flex-col gap-3 w-full">
       
-      {/* Barra de Pesquisa */}
+      {/* --- LINHA 1: Recomendações e Limpar (Distância 32px) --- */}
+      <div className="flex items-center gap-8 w-full min-h-[36px]">
+          {/* Recomendações: flex-1 para ocupar o espaço */}
+          {onRedoTriage && (
+            <Button 
+                variant="outline"
+                onClick={onRedoTriage}
+                className="flex-1 h-9 rounded-full text-xs font-bold border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:border-blue-300 active:scale-95 transition-all duration-200 shadow-sm justify-center"
+            >
+                <Sparkles className="w-3 h-3 mr-1.5 fill-blue-300" />
+                Recomendações
+            </Button>
+          )}
+
+          {/* Limpar: Sempre aparente (disabled se inativo) */}
+          <Button 
+            variant="ghost"
+            size="sm" 
+            onClick={onClear}
+            disabled={!hasActiveFilters} // Desabilita visualmente se não houver filtros
+            className={`h-9 rounded-full text-xs flex-shrink-0 px-3 transition-colors duration-200
+                ${hasActiveFilters 
+                    ? "text-red-600 hover:text-red-700 hover:bg-red-50 active:bg-red-100" 
+                    : "text-gray-300 cursor-not-allowed hover:bg-transparent"
+                }`}
+          >
+            <Trash2 className="w-3 h-3 mr-1" /> 
+            Limpar
+          </Button>
+      </div>
+
+      {/* --- LINHA 2: Barra de Pesquisa --- */}
       <div className="relative w-full">
         <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
           <Search className="w-4 h-4" />
@@ -88,7 +119,7 @@ export const SearchAndFilters = ({
         />
       </div>
 
-      {/* Área dos Filtros (Carrossel Horizontal) */}
+      {/* --- LINHA 3: Filtros (Causas, Público, Local) --- */}
       <div 
         className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0"
         style={hideScrollStyle}
@@ -99,24 +130,6 @@ export const SearchAndFilters = ({
             }
         `}</style>
         
-        {/* --- 0. BOTÃO MÁGICO DE RECOMENDAÇÃO --- */}
-        {/* Só aparece se a função onRedoTriage for passada */}
-        {onRedoTriage && (
-            <>
-                <Button 
-                    variant="outline"
-                    onClick={onRedoTriage}
-                    className="h-9 rounded-full text-xs font-bold border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:border-blue-300 active:scale-95 flex-shrink-0 mr-1 transition-all duration-200"
-                >
-                    <Sparkles className="w-3 h-3 mr-1.5 fill-blue-300" />
-                    Recomendações
-                </Button>
-                
-                {/* Separador visual */}
-                <div className="h-6 w-px bg-gray-200 mx-1 flex-shrink-0" />
-            </>
-        )}
-
         {/* 1. Causas */}
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -221,23 +234,6 @@ export const SearchAndFilters = ({
                 ))}
             </DropdownMenuContent>
         </DropdownMenu>
-
-        {/* Botão Limpar */}
-        {hasActiveFilters && (
-            <>
-                <div className="h-6 w-px bg-gray-200 mx-1 flex-shrink-0" />
-
-                <Button 
-                    variant="ghost"
-                    size="sm" 
-                    onClick={onClear}
-                    className="h-9 rounded-full text-xs text-red-600 hover:text-red-700 hover:bg-red-50 active:bg-red-100 flex-shrink-0 px-3 transition-colors duration-200"
-                >
-                    <Trash2 className="w-3 h-3 mr-1" /> 
-                    Limpar
-                </Button>
-            </>
-        )}
         
         <div className="w-2 flex-shrink-0" />
       </div>

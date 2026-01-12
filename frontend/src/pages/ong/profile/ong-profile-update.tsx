@@ -19,26 +19,12 @@ import { FiEye, FiEyeOff } from "react-icons/fi";
 // --- SCHEMAS ---
 const ongUpdateSchema = z.object({
     nome: z.string().min(2, { message: "Nome inválido" }),
-    endereco: z.string().optional(), // Campo de endereço
+    endereco: z.string().optional(),
     added_publico_alvo: z.array(z.string()),
     removed_publico_alvo: z.array(z.string()),
     added_necessidades: z.array(z.string()),
     removed_necessidades: z.array(z.string()),
 });
-
-// --- OPÇÕES ---
-const publicoAlvoOptions = [
-    "Crianças", "Adolescentes", "Adultos", "Idosos", "Homens", 
-    "Mulheres", "Animais", "População negra", "População Indígena", 
-    "LGBTQIA+", "Pessoas com Deficiência"
-];
-
-const necessidadesOptions = [
-    "Assistência Social", "Educação", "Saúde", "Saúde Mental", 
-    "Meio Ambiente", "Combate à Pobreza", "Cultura e Arte", 
-    "Igualdade de Gênero", "Direitos Humanos", "Justiça Social", 
-    "Esporte e Lazer", "Desenvolvimento Comunitário", "Emergências", "Emprego"
-];
 
 export default function OngProfileUpdate() {
     const { id } = useParams();
@@ -54,18 +40,45 @@ export default function OngProfileUpdate() {
     const [selectedPublico, setSelectedPublico] = useState<string[]>([]);
     const [selectedNecessidades, setSelectedNecessidades] = useState<string[]>([]);
     
+    // --- ESTADOS PARA AS OPÇÕES DINÂMICAS ---
+    const [publicoOptions, setPublicoOptions] = useState<string[]>([]);
+    const [necessidadesOptions, setNecessidadesOptions] = useState<string[]>([]);
+
     // Modais
     const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
     const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
-    // 1. Buscar Dados
+    // 1. Buscar Dados da ONG
     const { data: ongData, isLoading } = useQuery(["ong_profile", id], async () => {
         const res = await api.get(`/v1/ong/${id}`);
         return res.data;
     });
 
-    // 2. Configurar Formulário
+    // 2. BUSCAR OPÇÕES DO BACKEND
+    useEffect(() => {
+        const fetchOptions = async () => {
+            try {
+                const [resPublico, resNecessidades] = await Promise.all([
+                    api.get("/v1/publico-alvo"),
+                    api.get("/v1/necessidades")
+                ]);
+                
+                // Mapeia os objetos para array de strings (nome/tipo)
+                if (Array.isArray(resPublico.data)) {
+                    setPublicoOptions(resPublico.data.map((i: any) => i.tipo || i.nome).sort());
+                }
+                if (Array.isArray(resNecessidades.data)) {
+                    setNecessidadesOptions(resNecessidades.data.map((i: any) => i.tipo || i.nome).sort());
+                }
+            } catch (error) {
+                console.error("Erro ao carregar opções", error);
+            }
+        };
+        fetchOptions();
+    }, []);
+
+    // 3. Configurar Formulário
     const { register, handleSubmit, setValue, getValues, formState: { isDirty } } = useForm({
         resolver: zodResolver(ongUpdateSchema),
         defaultValues: {
@@ -78,11 +91,11 @@ export default function OngProfileUpdate() {
         }
     });
 
-    // 3. Sincronizar dados
+    // 4. Sincronizar dados iniciais
     useEffect(() => {
         if (ongData) {
             setValue("nome", ongData.nome);
-            setValue("endereco", ongData.endereco || ""); // AQUI: Garante que puxa o endereço, não o login
+            setValue("endereco", ongData.endereco || "");
             setSelectedPublico(ongData.publico_alvo.map((p: any) => p.tipo));
             setSelectedNecessidades(ongData.necessidades.map((n: any) => n.tipo));
         }
@@ -101,7 +114,7 @@ export default function OngProfileUpdate() {
 
     const hasUnsavedChanges = isDirty || tagsChanged;
 
-    // 4. Lógica de Toggle
+    // Toggle Tag
     const toggleTag = (tag: string, type: 'publico_alvo' | 'necessidades') => {
         const currentList = type === 'publico_alvo' ? selectedPublico : selectedNecessidades;
         const setList = type === 'publico_alvo' ? setSelectedPublico : setSelectedNecessidades;
@@ -182,7 +195,6 @@ export default function OngProfileUpdate() {
     return (
         <div className="min-h-screen bg-white flex flex-col">
             
-            {/* HEADER AZUL */}
             <header className="w-full h-12 bg-blue-600 flex items-center px-4 justify-between shadow-md sticky top-0 z-20">
                 <Button variant="ghost" size="icon" onClick={handleBackClick} className="text-white hover:bg-blue-700">
                     <FaArrowLeft className="w-5 h-5" />
@@ -191,7 +203,6 @@ export default function OngProfileUpdate() {
                 <div className="w-10"></div> 
             </header>
 
-            {/* CONTEÚDO */}
             <main className="flex-1 px-6 py-8 flex flex-col gap-8 pb-32">
                 
                 {/* 1. Dados da Conta */}
@@ -200,24 +211,21 @@ export default function OngProfileUpdate() {
                         <h3 className="text-gray-900 font-semibold text-lg">Dados da Conta</h3>
                     </div>
                     
-                    {/* Campo NOME */}
                     <div className="space-y-1.5">
                         <Label className="text-gray-500 font-normal ml-1 text-sm">Nome da ONG</Label>
                         <Input {...register("nome")} className={inputClass} autoComplete="off" />
                     </div>
 
-                    {/* Campo ENDEREÇO (Corrigido) */}
                     <div className="space-y-1.5">
                         <Label className="text-gray-500 font-normal ml-1 text-sm">Endereço</Label>
                         <Input 
                             {...register("endereco")} 
                             className={inputClass} 
                             placeholder="Rua, Bairro, Cidade..." 
-                            autoComplete="off" // Evita que o navegador preencha com email
+                            autoComplete="off" 
                         />
                     </div>
 
-                    {/* Campo LOGIN (Email) - Desabilitado e separado */}
                     <div className="space-y-1.5">
                         <Label className="text-gray-500 font-normal ml-1 text-sm">Login (Email)</Label>
                         <Input 
@@ -234,7 +242,7 @@ export default function OngProfileUpdate() {
                         <h3 className="text-gray-900 font-semibold text-lg">Público Alvo</h3>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        {publicoAlvoOptions.map(tag => (
+                        {publicoOptions.map(tag => (
                             <button
                                 key={tag}
                                 type="button"
@@ -248,6 +256,7 @@ export default function OngProfileUpdate() {
                                 {tag}
                             </button>
                         ))}
+                        {publicoOptions.length === 0 && <p className="text-sm text-gray-400">Carregando opções...</p>}
                     </div>
                 </section>
 
@@ -271,12 +280,12 @@ export default function OngProfileUpdate() {
                                 {tag}
                             </button>
                         ))}
+                        {necessidadesOptions.length === 0 && <p className="text-sm text-gray-400">Carregando opções...</p>}
                     </div>
                 </section>
 
                 {/* 4. Opções de Conta */}
                 <section className="flex flex-col gap-3">
-                    {/* Alterar Senha */}
                     <Dialog>
                         <DialogTrigger asChild>
                             <div className="flex justify-between items-center py-4 px-4 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition border border-gray-100">
@@ -306,7 +315,6 @@ export default function OngProfileUpdate() {
                         </DialogContent>
                     </Dialog>
 
-                    {/* Excluir Conta */}
                     <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
                         <DialogTrigger asChild>
                             <div className="flex justify-between items-center py-4 px-4 bg-red-50 rounded-xl cursor-pointer hover:bg-red-100 transition border border-red-100">
@@ -329,14 +337,12 @@ export default function OngProfileUpdate() {
 
             </main>
 
-            {/* RODAPÉ FIXO */}
             <div className="p-6 bg-white border-t border-gray-100 sticky bottom-0 z-30 shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.05)]">
                 <Button onClick={() => setIsSaveDialogOpen(true)} className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-semibold text-base shadow-lg shadow-blue-200 transition-transform active:scale-95">
                     Salvar Alterações
                 </Button>
             </div>
 
-            {/* MODAL SALVAR */}
             <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
                 <DialogContent className="bg-white rounded-2xl w-[90%] max-w-sm fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%]">
                     <DialogHeader>
@@ -350,7 +356,6 @@ export default function OngProfileUpdate() {
                 </DialogContent>
             </Dialog>
 
-            {/* MODAL SAIR */}
             <Dialog open={isExitDialogOpen} onOpenChange={setIsExitDialogOpen}>
                 <DialogContent className="bg-white rounded-2xl w-[90%] max-w-sm fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%]">
                     <DialogHeader>

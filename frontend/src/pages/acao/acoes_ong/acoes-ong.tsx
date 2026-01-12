@@ -123,11 +123,15 @@ export default function AcoesOng() {
                             <CardAcao
                                 image={(banners[acao.id] ? serverURI + banners[acao.id] : "")}
                                 nomeAcao={acao.nome}
-                                // --- CORREÇÃO AQUI: Passando o nome da ONG explicitamente ---
                                 nomeOng={ongData?.nome} 
                                 dataAcao={`${acao.dia} de ${acao.mes} de ${acao.ano}`}
                                 duracao={`${acao.inicio} - ${acao.termino}`}
                                 endereco={`${acao.endereco}, ${acao.numero} - ${acao.bairro}`}
+
+                                // NOVAS PROPS (Para funcionar o cinza)
+                                dia={acao.dia}
+                                mes={acao.mes}
+                                ano={acao.ano}
                             />
                         </div>
                     ))}

@@ -183,224 +183,123 @@ export default class ONGController {
         }
     }
 
-    /*static async findAll(req: Request, res: Response): Promise<any> {
-        try {
-            const { location, search, category, target, userLat, userLon } = req.query;
-
-            // Normaliza filtros
-            const toArray = (p: any) => (!p ? [] : Array.isArray(p) ? p.map(String) : String(p).split(',').filter(x => x.trim() !== ''));
-            const locations = toArray(location);
-            const categories = toArray(category);
-            const targets = toArray(target);
-            const searchTerm = search ? String(search) : undefined;
-
-            // 1. Busca ONGs (Mantendo filtros de banco para performance base)
-            const ongs = await ONGRepository.findAll({
-                search: searchTerm,
-                category: categories.length > 0 ? categories : undefined, 
-                target: targets.length > 0 ? targets : undefined
-            });
-
-            // 2. INICIALIZAÇÃO SEGURA (Cria os campos com valor padrão para todos)
-            let processedOngs = ongs.map((ong: any) => ({
-                ...ong,
-                distanceKm: Infinity, // Padrão: muito longe
-                jaccardScore: 0       // Padrão: sem relevância
-            }));
-
-            // 3. DEFINE PONTO DE REFERÊNCIA (GPS ou Bairro)
-            let referencePoint = { lat: 0, lon: 0, active: false, name: "" };
-
-            if (userLat && userLon) {
-                referencePoint = { lat: Number(userLat), lon: Number(userLon), active: true, name: "Sua localização" };
-            } 
-            else if (locations.length > 0) {
-                const bairrosAncoras = await LookupRepository.findBairrosByNames(locations);
-                if (bairrosAncoras.length > 0) {
-                    referencePoint = { 
-                        lat: bairrosAncoras[0].lat, 
-                        lon: bairrosAncoras[0].lon, 
-                        active: true,
-                        name: bairrosAncoras[0].nome
-                    };
-                }
-            }
-
-            // 4. CÁLCULOS (Content-Based + Geolocation)
-            const userInterestsSet = new Set([...categories, ...targets]);
-
-            processedOngs = processedOngs.map((ong: any) => {
-                let dist = Infinity;
-                let jaccard = 0;
-
-                // --- A. Distância (Haversine) ---
-                if (referencePoint.active && ong.lat && ong.lon) {
-                    dist = getDistanceFromLatLonInKm(
-                        referencePoint.lat, referencePoint.lon,
-                        Number(ong.lat), Number(ong.lon)
-                    );
-                }
-
-                // --- B. Relevância (Jaccard) ---
-                if (userInterestsSet.size > 0) {
-                    const ongTags = new Set([
-                        ...ong.ongNecessidade.map((n: any) => n.necessidade.tipo),
-                        ...ong.ongPublicoAlvo.map((p: any) => p.publicoAlvo.tipo)
-                    ]);
-
-                    const intersection = new Set([...userInterestsSet].filter(x => ongTags.has(x)));
-                    const union = new Set([...userInterestsSet, ...ongTags]);
-
-                    if (union.size > 0) {
-                        jaccard = intersection.size / union.size;
-                    }
-                }
-
-                return { ...ong, distanceKm: dist, jaccardScore: jaccard };
-            });
-
-            // 5. FILTRAGEM POR RAIO (Apenas se tiver ponto de referência ativo)
-            // Se filtrou por local, mostra raio de 5km (pega vizinhos). Se não, mostra tudo.
-            if (referencePoint.active) {
-                processedOngs = processedOngs.filter((ong: any) => ong.distanceKm <= 5);
-            }
-
-            // 6. ORDENAÇÃO (O CORAÇÃO DO ALGORITMO)
-            processedOngs.sort((a: any, b: any) => {
-                // Fator 1: Jaccard (Maior score ganha) - Peso alto
-                if (Math.abs(b.jaccardScore - a.jaccardScore) > 0.01) { // 0.01 para evitar flutuação de float
-                    return b.jaccardScore - a.jaccardScore;
-                }
-                
-                // Fator 2: Distância (Menor distância ganha) - Desempate
-                return a.distanceKm - b.distanceKm;
-            });
-
-            // 7. Fallback Textual (Se usuário digitou bairro mas bairro não tem lat/lon)
-            if (locations.length > 0 && !referencePoint.active) {
-                processedOngs = processedOngs.filter((ong: any) => 
-                     locations.some(loc => ong.endereco.includes(loc))
-                );
-            }
-
-            // 8. Retorno
-            return res.status(200).json(
-                processedOngs.map((ong: any) => ({
-                    ...ONGMapper.toCompleteResponse(ong),
-                    // Debug: Retorne esses valores para testar no navegador se a ordenação funcionou
-                    _debugDistance: ong.distanceKm,
-                    _debugScore: ong.jaccardScore,
-                    
-                    referencia: referencePoint.active && ong.distanceKm < 2 
-                        ? `Próximo a ${referencePoint.name}` 
-                        : null
-                }))
-            );
-
-        } catch (error) {
-            console.error("Erro no ONGController:", error);
-            return res.status(500).json(basicError("Erro ao processar ONGs"));
-        }
-    }*/
-
+    // --- LÓGICA DE RECOMENDAÇÃO CORRIGIDA ---
     static async findAll(req: Request, res: Response): Promise<any> {
         try {
             const { location, search, category, target, userLat, userLon } = req.query;
 
             const toArray = (p: any) => (!p ? [] : Array.isArray(p) ? p.map(String) : String(p).split(',').filter(x => x.trim() !== ''));
-            const locations = toArray(location);
+            const locations = toArray(location); // Ex: ['Água Fria', 'Santo Amaro']
             const categories = toArray(category);
             const targets = toArray(target);
             const searchTerm = search ? String(search) : undefined;
 
-            // Busca no banco (Filtro grosso)
+            // Busca no banco
             const ongs = await ONGRepository.findAll({
                 search: searchTerm,
                 category: categories.length > 0 ? categories : undefined, 
                 target: targets.length > 0 ? targets : undefined
             });
 
-            // --- CONFIGURAÇÃO DO ALGORITMO (60/40) ---
-            const WEIGHT_CONTENT = 0.4;  // 40% Peso para Overlap
-            const WEIGHT_DISTANCE = 0.6; // 60% Peso para Distância
-            const MAX_RADIUS_KM = 15;    // Raio máximo considerado (acima disso nota de dist é 0)
+            // Configuração Algoritmo
+            const WEIGHT_CONTENT = 0.4;
+            const WEIGHT_DISTANCE = 0.6;
+            const MAX_RADIUS_KM = 10; 
 
-            // Inicializa ponto de referência
-            let referencePoint = { lat: 0, lon: 0, active: false, name: "" };
+            // 1. PREPARAÇÃO DOS PONTOS DE REFERÊNCIA
+            let referencePoints: any[] = [];
 
+            // A: GPS do Usuário
             if (userLat && userLon) {
-                referencePoint = { lat: Number(userLat), lon: Number(userLon), active: true, name: "Sua localização" };
+                referencePoints.push({
+                    lat: Number(userLat),
+                    lon: Number(userLon),
+                    name: "Sua localização"
+                });
             } 
+            // B: Filtros de Bairro (Ex: Água Fria E Santo Amaro)
             else if (locations.length > 0) {
                 const bairrosAncoras = await LookupRepository.findBairrosByNames(locations);
-                if (bairrosAncoras.length > 0) {
-                    referencePoint = { 
-                        lat: bairrosAncoras[0].lat, 
-                        lon: bairrosAncoras[0].lon, 
-                        active: true,
-                        name: bairrosAncoras[0].nome
-                    };
-                }
+                
+                // Mapeia TODOS os bairros selecionados
+                referencePoints = bairrosAncoras.map((b: any) => ({
+                    lat: b.lat,
+                    lon: b.lon,
+                    name: b.nome
+                }));
             }
 
             const userInterestsSet = new Set([...categories, ...targets]);
 
-            // CÁLCULO DOS SCORES
+            // 2. CÁLCULO E ITERAÇÃO
             let processedOngs = ongs.map((ong: any) => {
-                let dist = Infinity;
                 let overlapScore = 0;
                 let normalizedDistScore = 0;
-                let debugJaccard = 0; // Só para evidência no TCC
+                let debugJaccard = 0; 
 
-                // 1. Distância Real e Normalizada
-                if (referencePoint.active && ong.lat && ong.lon) {
-                    dist = getDistanceFromLatLonInKm(
-                        referencePoint.lat, referencePoint.lon,
-                        Number(ong.lat), Number(ong.lon)
-                    );
+                let bestMatch = {
+                    distance: Infinity,
+                    name: null as string | null
+                };
 
-                    // Normaliza (0 a 1): Quanto mais perto, maior a nota
-                    if (dist < MAX_RADIUS_KM) {
-                        normalizedDistScore = 1 - (dist / MAX_RADIUS_KM);
+                const lat = Number(ong.lat);
+                const lon = Number(ong.lon);
+
+                if (referencePoints.length > 0 && lat && lon) {
+                    // DEBUG: Descomente para ver a "corrida" no terminal
+                    // console.log(`\n--- Calculando para ONG: ${ong.nome} ---`);
+
+                    referencePoints.forEach(ref => {
+                        const d = getDistanceFromLatLonInKm(
+                            ref.lat, ref.lon,
+                            lat, lon
+                        );
+                        
+                        // DEBUG
+                        // console.log(`Distância até ${ref.name}: ${d.toFixed(2)}km`);
+
+                        // Se encontrou uma distância MENOR que a atual vencedora, atualiza TUDO
+                        if (d < bestMatch.distance) {
+                            bestMatch.distance = d;
+                            bestMatch.name = ref.name;
+                        }
+                    });
+                    
+                    console.log(`🏆 VENCEDOR: ${bestMatch.name} (${bestMatch.distance.toFixed(2)}km)`);
+
+                    // Normaliza a distância vencedora
+                    if (bestMatch.distance < MAX_RADIUS_KM) {
+                        normalizedDistScore = 1 - (bestMatch.distance / MAX_RADIUS_KM);
                     } else {
                         normalizedDistScore = 0;
                     }
                 }
 
-                // 2. Score de Conteúdo (Overlap vs Jaccard)
+                // B. Conteúdo (Overlap)
                 if (userInterestsSet.size > 0) {
                     const ongTags = new Set([
                         ...ong.ongNecessidade.map((n: any) => n.necessidade.tipo),
                         ...ong.ongPublicoAlvo.map((p: any) => p.publicoAlvo.tipo)
                     ]);
-                    
                     const intersection = [...userInterestsSet].filter(x => ongTags.has(x)).length;
                     const union = new Set([...userInterestsSet, ...ongTags]).size;
 
-                    // OVERLAP (O ESCOLHIDO): Foca na satisfação do usuário
                     overlapScore = intersection / userInterestsSet.size;
-
-                    // JACCARD (PARA COMPARATIVO): Penaliza tags extras
                     if (union > 0) debugJaccard = intersection / union;
-
                 } else {
-                    // Se usuário não filtrou interesses, assumimos relevância total de conteúdo
-                    // para que a ordenação seja puramente por distância
                     overlapScore = 1;
                 }
 
-                // 3. Score Final Ponderado
+                // C. Score Final
                 let finalScore = 0;
-                
-                // Se o usuário pediu filtros de interesse, só damos score se houver match.
-                // Se ele não pediu nada (userInterestsSet.size == 0), o score é baseado 100% na distância (overlap é 1).
                 if (overlapScore > 0) {
                     finalScore = (overlapScore * WEIGHT_CONTENT) + (normalizedDistScore * WEIGHT_DISTANCE);
                 }
 
                 return { 
                     ...ong, 
-                    distanceKm: dist, 
+                    distanceKm: bestMatch.distance, // Usa a distância vencedora
+                    closestRefName: bestMatch.name, // Usa o nome vencedor
                     relevanceScore: overlapScore, 
                     distScore: normalizedDistScore,
                     finalScore: finalScore,
@@ -408,11 +307,11 @@ export default class ONGController {
                 };
             });
 
-            // ORDENAÇÃO (Maior Score Final Vence)
+            // 3. Ordenação
             processedOngs.sort((a: any, b: any) => b.finalScore - a.finalScore);
 
-            // Fallback para busca textual simples se não houver GPS
-            if (locations.length > 0 && !referencePoint.active) {
+            // Filtro textual de fallback (caso GPS falhe totalmente)
+            if (locations.length > 0 && referencePoints.length === 0) {
                 processedOngs = processedOngs.filter((ong: any) => 
                      locations.some(loc => ong.endereco.includes(loc))
                 );
@@ -422,15 +321,13 @@ export default class ONGController {
                 processedOngs.map((ong: any) => ({
                     ...ONGMapper.toCompleteResponse(ong),
                     
-                    // Dados para mostrar no Card (Evidência TCC)
-                    scoreFinal: (ong.finalScore * 100).toFixed(0), // Ex: "85"
+                    scoreFinal: (ong.finalScore * 100).toFixed(0),
                     scoreOverlap: (ong.relevanceScore * 100).toFixed(0) + '%',
-                    scoreJaccard: (ong.debugJaccard * 100).toFixed(0) + '%', // Mostra o Jaccard só pra comparar
+                    scoreJaccard: (ong.debugJaccard * 100).toFixed(0) + '%',
                     distancia: ong.distanceKm !== Infinity ? ong.distanceKm.toFixed(1) + 'km' : '--',
                     
-                    referencia: referencePoint.active && ong.distanceKm < 3 
-                        ? `Próximo a ${referencePoint.name}` 
-                        : null
+                    // Envia para o frontend APENAS o nome do bairro mais próximo calculado acima
+                    pontoReferencia: ong.closestRefName 
                 }))
             );
 
@@ -441,15 +338,58 @@ export default class ONGController {
     }
 
     static async findById(req: Request, res: Response): Promise<any> {
-        const {id} = req.params;
+        const { id } = req.params;
+        // 1. Recebe os parametros de localização
+        const { userLat, userLon, location } = req.query;
+
         try {
             const ong = await ONGRepository.findById(id);
-            if (!ong) {
-                return res.status(404).json(basicError("ONG não encontrada."));
+            if (!ong) return res.status(404).json(basicError("ONG não encontrada."));
+
+            // 2. Lógica de Cálculo (Simplificada para 1 item)
+            let distanciaInfo = { distancia: '--', pontoReferencia: null as string | null };
+            
+            // Define pontos de referência (GPS ou Filtro de Texto)
+            let referencePoints: any[] = [];
+            
+            if (userLat && userLon) {
+                referencePoints.push({ lat: Number(userLat), lon: Number(userLon), name: "Sua localização" });
+            } else if (location) {
+                // Se vier via query string (ex: ?location=Recife,Olinda)
+                const locations = Array.isArray(location) ? location.map(String) : String(location).split(',');
+                if (locations.length > 0) {
+                    const bairrosAncoras = await LookupRepository.findBairrosByNames(locations);
+                    referencePoints = bairrosAncoras.map((b: any) => ({ lat: b.lat, lon: b.lon, name: b.nome }));
+                }
             }
-            return res.status(200).json(
-                ONGMapper.toCompleteResponse(ong)
-            );
+
+            // Calcula
+            if (referencePoints.length > 0 && ong.lat && ong.lon) {
+                let minDist = Infinity;
+                let closestRefName = null;
+
+                referencePoints.forEach(ref => {
+                    const d = getDistanceFromLatLonInKm(ref.lat, ref.lon, Number(ong.lat), Number(ong.lon));
+                    if (d < minDist) {
+                        minDist = d;
+                        closestRefName = ref.name;
+                    }
+                });
+
+                if (minDist !== Infinity) {
+                    distanciaInfo = {
+                        distancia: minDist.toFixed(1) + 'km',
+                        pontoReferencia: closestRefName
+                    };
+                }
+            }
+
+            // 3. Retorna objeto mesclado
+            return res.status(200).json({
+                ...ONGMapper.toCompleteResponse(ong),
+                ...distanciaInfo
+            });
+
         } catch (error) {
             return res.status(500).json(basicError("Erro ao buscar ONG"));
         }

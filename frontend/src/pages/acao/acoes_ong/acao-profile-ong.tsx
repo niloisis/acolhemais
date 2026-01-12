@@ -5,7 +5,6 @@ import { useQuery, useQueryClient } from "react-query";
 import { api, serverURI } from "@/utils/api.ts";
 import { Ong } from "@/pages/ong/@types/Ong.ts";
 import { Acao } from "@/pages/acao/acoes_ong/@types/Acao.ts";
-import { Skeleton } from "@/components/ui/skeleton.tsx";
 import { ChangeEvent, useRef, useState } from "react";
 import { CalendarIcon } from '@radix-ui/react-icons';
 import { FiEdit, FiCamera, FiTrash2 } from "react-icons/fi";
@@ -20,10 +19,11 @@ import { Input } from "@/components/ui/input.tsx";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ReadAloudBtn } from "@/components/ui/ReadAloudBtn"; // 1. Importar
+import { ReadAloudBtn } from "@/components/ui/ReadAloudBtn"; 
 import {
     Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger
 } from "@/components/ui/dialog.tsx";
+import { MapPin } from "lucide-react"; 
 
 const updateAcaoSchema = z.object({
     descricao: z.string().min(3, { message: "Descrição muito curta" }),
@@ -41,16 +41,40 @@ export default function AcaoProfileOng() {
     const [bannerTimestamp, setBannerTimestamp] = useState(Date.now());
     const [isEditMode, setEditMode] = useState<boolean>(false);
     
-    const { id: paramOngId, acaoId } = useParams(); // Renomeei para paramOngId
+    const { id: paramOngId, acaoId } = useParams();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const bannerInputRef = useRef<HTMLInputElement | null>(null);
 
-    // 1. Busca Ação (Primeiro buscamos a ação para saber de quem ela é)
+    // --- FUNÇÃO PARA PEGAR LOCALIZAÇÃO (Filtros ou GPS) ---
+    const getUserLocationParams = () => {
+        const params = new URLSearchParams();
+        const storedRegions = sessionStorage.getItem("filter_regions");
+        if (storedRegions) {
+            const regions = JSON.parse(storedRegions);
+            if (regions.length > 0) params.append("location", regions.join(','));
+        }
+        if (!params.has("location")) {
+            const savedTriage = localStorage.getItem("user_triage");
+            if (savedTriage) {
+                const data = JSON.parse(savedTriage);
+                if (data.lat && data.lon) {
+                    params.append("userLat", data.lat);
+                    params.append("userLon", data.lon);
+                }
+            }
+        }
+        return params.toString();
+    };
+
+    // 1. Busca Ação (COM QUERY PARAMS DE DISTÂNCIA)
     const acaoQuery = useQuery({
         queryKey: ["ong_acao", acaoId],
         queryFn: async (): Promise<Acao> => {
-            const { data } = await api.get<Acao>(`/v1/acoes/${acaoId}`);
+            const queryParams = getUserLocationParams();
+            // Adiciona parametros na chamada para o back calcular a distância
+            const { data } = await api.get<Acao>(`/v1/acoes/${acaoId}?${queryParams}`);
+            
             try {
                 await api.get(`/v1/acoes/${acaoId}/banner`);
                 setBannerURL(`/v1/acoes/${acaoId}/banner`);
@@ -61,11 +85,8 @@ export default function AcaoProfileOng() {
 
     const { data: acaoData, refetch } = acaoQuery;
 
-    // 2. CORREÇÃO DO BUG:
-    // O ID da ONG agora vem estritamente dos dados da ação, ignorando a URL.
     const ownerOngId = acaoData?.ongId;
 
-    // 3. Busca ONG (Só executa quando tivermos o ID do dono da ação)
     const ongQuery = useQuery({
         queryKey: ["ong_profile", ownerOngId],
         queryFn: async (): Promise<Ong> => {
@@ -76,7 +97,7 @@ export default function AcaoProfileOng() {
             } catch (e) { setLogoURL(""); }
             return data;
         },
-        enabled: !!ownerOngId // Só busca se o ID existir
+        enabled: !!ownerOngId
     });
 
     const { register, handleSubmit, getValues } = useForm<UpdateAcaoSchema>({
@@ -137,7 +158,6 @@ export default function AcaoProfileOng() {
 
     if (acaoQuery.isLoading) return <div className="min-h-screen bg-white"></div>;
 
-    // Verifica se o usuário logado é o dono (comparando com o ID real da ação)
     const isOwner = localStorage.getItem("ongId") === ownerOngId;
     
     const backgroundCurve = (
@@ -148,28 +168,40 @@ export default function AcaoProfileOng() {
 
     const inputClass = "rounded-[12px] border-gray-200 bg-white text-gray-700 shadow-sm focus-visible:ring-blue-600";
 
-    // Função de navegação para o perfil da ONG correta
     const handleNavigateToOng = () => {
         if (ownerOngId) {
             navigate(`/ong/${ownerOngId}`);
         }
     };
+    
+    // --- 2. TEXTO PARA LEITURA + DISTÂNCIA ---
+    const distanciaTexto = acaoData?.distancia && acaoData?.distancia !== '--'
+        ? `Fica a ${acaoData.distancia} de ${acaoData.pontoReferencia || 'sua localização'}.`
+        : "";
 
-    // --- 2. PREPARAR O TEXTO PARA LEITURA ---
+    // CORREÇÃO AQUI: Removemos a concatenação extra de endereço
     const textoParaLer = `
         Evento: ${acaoData?.nome}. 
         Realizado pela ONG: ${ongQuery.data?.nome || "Parceira"}. 
         Sobre o evento: ${acaoData?.descricao || "Sem descrição"}. 
         Data: ${acaoData?.dia} de ${acaoData?.mes} de ${acaoData?.ano}. 
         Horário: das ${acaoData?.inicio?.replace(':', ' e ')} às ${acaoData?.termino?.replace(':', ' e ')}. 
-        Local: ${acaoData?.endereco}, número ${acaoData?.numero}, bairro ${acaoData?.bairro}. 
+        Local: ${acaoData?.endereco || "Endereço não informado"}. 
+        ${distanciaTexto}
         Como participar: ${acaoData?.como_participar || "Entre em contato"}.
     `;
+
+    // Helper simples dentro do componente ou fora
+    const getMapsLink = (address: string) => {
+        return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+    };
+
+    // CORREÇÃO AQUI: Usamos apenas 'endereco', pois ele já vem formatado do banco
+    const enderecoCompleto = acaoData?.endereco || "";
 
     return (
         <div className="min-h-screen bg-white pb-20 overflow-x-hidden">
             
-            {/* --- 3. BOTÃO FLUTUANTE DE LEITURA (FIXED) --- */}
             <div className="fixed bottom-10 right-6 z-50">
                 <div className="bg-white p-1 rounded-full shadow-xl border-2 border-blue-100">
                     <ReadAloudBtn 
@@ -179,7 +211,6 @@ export default function AcaoProfileOng() {
                 </div>
             </div>
 
-            {/* HEADER AZUL */}
             <div className="relative w-full pb-20">
                 <div className="flex -mt-2 justify-between items-center p-6 relative z-20 text-white">
                     <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="text-white hover:bg-blue-700">
@@ -211,10 +242,8 @@ export default function AcaoProfileOng() {
                 </div>
             </div>
 
-            {/* CONTEÚDO PRINCIPAL */}
             <div className="flex flex-col -mt-12 items-center relative z-20 px-6">
                 
-                {/* Avatar da ONG (Clicável) */}
                 <div 
                     className="relative mb-2 cursor-pointer hover:opacity-90 transition-opacity"
                     onClick={handleNavigateToOng}
@@ -225,7 +254,6 @@ export default function AcaoProfileOng() {
                     </Avatar>
                 </div>
 
-                {/* Título e Nome da ONG (Clicável) */}
                 <h1 className="text-2xl font-bold text-gray-900 text-center leading-tight">{acaoData?.nome}</h1>
                 
                 <p 
@@ -235,7 +263,6 @@ export default function AcaoProfileOng() {
                     {ongQuery.data?.nome || "Carregando ONG..."}
                 </p>
 
-                {/* BANNER */}
                 <div className="w-full mt-8 relative">
                     <div className="aspect-video w-full rounded-[22px] overflow-hidden bg-gray-100 shadow-sm relative">
                         {isEditMode && (
@@ -263,7 +290,6 @@ export default function AcaoProfileOng() {
                     </div>
                 </div>
 
-                {/* SOBRE O EVENTO */}
                 <div className="w-full mt-8 text-left">
                     <h3 className="font-semibold text-gray-900 text-lg mb-2">Sobre o Evento</h3>
                     {isEditMode ? (
@@ -281,21 +307,48 @@ export default function AcaoProfileOng() {
 
                 {/* METADADOS */}
                 <div className="w-full mt-6 bg-gray-50 p-5 rounded-[22px] border border-gray-100 flex flex-col gap-3">
+                    
+                    {/* Data (Igual) */}
                     <div className="flex items-center gap-3 text-gray-700 text-sm">
                         <CalendarIcon className="w-5 h-5 text-blue-600" />
                         <span className="font-medium">{`${acaoData?.dia} de ${acaoData?.mes} de ${acaoData?.ano}`}</span>
                     </div>
+                    
+                    {/* Hora (Igual) */}
                     <div className="flex items-center gap-3 text-gray-700 text-sm">
                         <GoClock className="w-5 h-5 text-blue-600" />
                         <span className="font-medium">{`${acaoData?.inicio} - ${acaoData?.termino}`}</span>
                     </div>
-                    <div className="flex items-center gap-3 text-gray-700 text-sm">
-                        <IoLocationOutline className="w-5 h-5 text-blue-600 flex-shrink-0" />
-                        <span className="font-medium break-words">{`${acaoData?.endereco}, ${acaoData?.numero} - ${acaoData?.bairro}`}</span>
-                    </div>
+                    
+                    {/* --- LOCALIZAÇÃO CLICÁVEL --- */}
+                    <a 
+                        href={getMapsLink(enderecoCompleto)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-start gap-3 text-gray-700 text-sm group hover:text-blue-600 transition-colors cursor-pointer"
+                        title="Ver rota no Google Maps"
+                    >
+                        <IoLocationOutline className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
+                        
+                        <div className="flex flex-col">
+                            {/* CORREÇÃO AQUI: Mostra apenas o endereço que vem do banco */}
+                            <span className="font-medium break-words group-hover:underline underline-offset-2">
+                                {acaoData?.endereco || "Endereço não informado"}
+                            </span>
+                            
+                            {/* Flag de Distância */}
+                            {acaoData?.distancia && acaoData.distancia !== '--' && (
+                                <div className="flex items-center gap-1.5 mt-2 text-blue-600 bg-white border border-blue-100 px-2 py-1 rounded-md w-fit shadow-sm no-underline">
+                                    <MapPin className="w-3.5 h-3.5" />
+                                    <span className="text-xs font-semibold">
+                                        {acaoData.distancia} de {acaoData.pontoReferencia || 'sua localização'}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                    </a>
                 </div>
 
-                {/* COMO PARTICIPAR */}
                 <div className="w-full mt-6 text-left">
                     <h3 className="font-semibold text-gray-900 text-lg mb-2">Como participar</h3>
                     {isEditMode ? (
@@ -311,7 +364,6 @@ export default function AcaoProfileOng() {
                     )}
                 </div>
 
-                {/* BOTÃO PRINCIPAL / EXCLUIR */}
                 <div className="w-full mt-10 mb-10">
                     {isEditMode ? (
                         <div className="flex flex-col gap-4">
@@ -346,7 +398,7 @@ export default function AcaoProfileOng() {
                                 className="w-full h-14 bg-blue-600 hover:bg-blue-700 rounded-full text-lg font-semibold shadow-lg shadow-blue-200"
                                 onClick={() => window.open(acaoData.link_contato, '_blank')}
                             >
-                                Entrar em contato
+                                Quero participar.
                             </Button>
                          )
                     )}
