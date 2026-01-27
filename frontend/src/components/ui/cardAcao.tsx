@@ -81,7 +81,7 @@ const CardAcao = ({
                 </div>
             ) : (
                 scoreFinal && parseInt(scoreFinal) > 0 && (
-                    <div className="absolute top-0 left-0 bg-green-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-br-xl z-20 flex items-center gap-1 shadow-sm">
+                    <div className="absolute top-0 left-0 bg-blue-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-br-xl z-20 flex items-center gap-1 shadow-sm">
                         ✨ Match: {scoreFinal}%
                     </div>
                 )
@@ -172,9 +172,9 @@ const CardAcao = ({
                     </div>
                 </div>
                 
-                <span className="text-xs font-bold text-gray-300 cursor-help" title="Algoritmo Híbrido">
+                {/*<span className="text-xs font-bold text-gray-300 cursor-help" title="Algoritmo Híbrido">
                     ⚖️
-                </span>
+                </span>*/}
             </div>
         </div>
     );

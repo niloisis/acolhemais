@@ -37,9 +37,9 @@ const CardONG = ({
     return (
         <div className="flex flex-col gap-3 p-3 border border-[#EFEFF0] rounded-[22px] bg-white shadow-sm hover:shadow-md transition-all w-full h-full relative group overflow-hidden pb-9"> 
             
-            {/* BADGE DE MATCH */}
+            {/* BADGE DE MATCH  */}
             {scoreFinal && parseInt(scoreFinal) > 0 && (
-                <div className="absolute top-0 left-0 bg-green-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-br-xl z-20 flex items-center gap-1 shadow-sm">
+                <div className="absolute top-0 left-0 bg-blue-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-br-xl z-20 flex items-center gap-1 shadow-sm">
                     ✨ Match: {scoreFinal}%
                 </div>
             )}
@@ -86,15 +86,15 @@ const CardONG = ({
                         ) : '--'}
                     </span>
 
-                    <div className="h-3 w-px bg-gray-300"></div>
+                    {/*<div className="h-3 w-px bg-gray-300"></div>
 
                     <div className="flex gap-2">
                         <span title="Jaccard (Comparativo)" className="text-gray-400">J: {scoreJaccard || '0%'}</span>
                         <span title="Overlap (Escolhido)" className="text-green-700 font-bold border-b border-green-200">O: {scoreOverlap || '0%'}</span>
-                    </div>
+                    </div>*/}
                 </div>
                 
-                <span className="text-xs font-bold text-gray-300 cursor-help" title="Algoritmo Híbrido">⚖️</span>
+                {/*<span className="text-xs font-bold text-gray-300 cursor-help" title="Algoritmo Híbrido">⚖️</span>*/}
             </div>
         </div>
     );

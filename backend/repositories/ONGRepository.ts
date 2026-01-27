@@ -182,53 +182,53 @@ class ONGRepository {
         return exists !== null;
     }
 
-    /*async findAll() {
-        return db.ong.findMany({
-            include: {
-                ongNecessidade: { include: { necessidade: true } },
-                ongPublicoAlvo: { include: { publicoAlvo: true } },
-                ongContato: { include: { tipoContato: true } },
-                ongImage: true
-            },
-        });
-    }*/
 
-    // Agora aceita location, category (Causa) e target (Público Alvo)
-    // Agora aceita arrays de string ou undefined
     async findAll(filters?: { location?: string[], category?: string[], target?: string[], search?: string }) {
         
         const whereClause: any = {};
+        
+        // --- NOVA LÓGICA DE PRIORIDADE ---
 
-        // 1. Busca Textual (Nome da ONG)
-        if (filters?.search) {
-            whereClause.nome = {
-                contains: filters.search
-            };
-        }
-
-        // 2. Localização (Bairros) - Lógica OR
-        if (filters?.location && filters.location.length > 0) {
-            whereClause.OR = filters.location.map(loc => ({
-                endereco: { contains: loc }
-            }));
-        }
-
-        // 3. Causas - Lógica IN
-        if (filters?.category && filters.category.length > 0) {
-            whereClause.ongNecessidade = {
-                some: {
-                    necessidade: { tipo: { in: filters.category } }
-                }
-            };
-        }
-
-        // 4. Público Alvo - Lógica IN
+        // 1. Verifica se existe filtro de PÚBLICO ALVO (Prioridade Máxima)
         if (filters?.target && filters.target.length > 0) {
-            whereClause.ongPublicoAlvo = {
-                some: {
-                    publicoAlvo: { tipo: { in: filters.target } }
-                }
+            // REGRA: Se selecionou público, a ONG OBRIGATORIAMENTE tem que ter esse público.
+            // Ignoramos o filtro de 'category' aqui no WHERE. A categoria servirá apenas para o Score no Controller.
+            
+            whereClause.ongPublicoAlvo = { 
+                some: { publicoAlvo: { tipo: { in: filters.target } } } 
             };
+
+        } 
+        // 2. Se NÃO selecionou público, mas selecionou CAUSA
+        else if (filters?.category && filters.category.length > 0) {
+            // REGRA: Aqui a Causa vira o filtro principal, já que não temos público para restringir.
+            whereClause.ongNecessidade = { 
+                some: { necessidade: { tipo: { in: filters.category } } } 
+            };
+        }
+
+        // 3. Lógica de Busca Textual (Search)
+        // A busca textual continua funcionando em conjunto.
+        // Se o usuário digitou algo, a gente permite que o texto traga resultados TAMBÉM.
+        if (filters?.search) {
+            const searchCondition = {
+                OR: [
+                    { nome: { contains: filters.search } }, // Ajuste o mode: 'insensitive' se seu banco suportar
+                    { descricao: { contains: filters.search } }
+                ]
+            };
+
+            // Se já definimos uma regra de tag (Público ou Causa acima), combinamos com AND ou mantemos a lógica de inclusão
+            // Para respeitar estritamente "Não mostrar se não tiver público", o ideal é que o search respeite o filtro de cima.
+            // Mas para manter a usabilidade de "Busca livre", geralmente fazemos um merge.
+            
+            // Opção A (Restritiva - Recomendada para o seu caso):
+            // O texto só busca DENTRO do público alvo selecionado.
+            if (Object.keys(whereClause).length > 0) {
+                whereClause.AND = searchCondition;
+            } else {
+                whereClause.OR = searchCondition.OR;
+            }
         }
 
         return db.ong.findMany({
@@ -236,16 +236,13 @@ class ONGRepository {
             include: {
                 ongNecessidade: { include: { necessidade: true } },
                 ongPublicoAlvo: { include: { publicoAlvo: true } },
-                // Não precisamos incluir contato agora se não for exibir na lista, 
-                // mas vamos manter para o card funcionar
-                ongContato: { include: { tipoContato: true } }, 
+                ongContato: { include: { tipoContato: true } },
                 ongImage: true,
                 bairro: true
             },
-            // Limitamos a 50 para não travar se tiver mil ONGs (paginação futura)
-            take: 50 
         });
     }
+
 
     // Métodos adicionais (Logo, Contato, Delete)
     async updateLogo(id: string, filename: string) {

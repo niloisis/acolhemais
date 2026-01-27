@@ -273,6 +273,14 @@ export default class ONGController {
                     } else {
                         normalizedDistScore = 0;
                     }
+
+                    // 🔥 ADICIONE ISTO AQUI PARA VER NO TERMINAL 🔥
+                    console.log(`---------------------------------------------------`);
+                    console.log(`🏢 ONG: ${ong.nome}`);
+                    console.log(`📍 Perto de: ${bestMatch.name}`);
+                    console.log(`📏 Distância Real: ${bestMatch.distance.toFixed(4)} km`);
+                    console.log(`📊 Score Distância (Normalizado): ${normalizedDistScore.toFixed(4)}`);
+                    console.log(`---------------------------------------------------`);
                 }
 
                 // B. Conteúdo (Overlap)
@@ -287,7 +295,7 @@ export default class ONGController {
                     overlapScore = intersection / userInterestsSet.size;
                     if (union > 0) debugJaccard = intersection / union;
                 } else {
-                    overlapScore = 1;
+                    overlapScore = 0;
                 }
 
                 // C. Score Final

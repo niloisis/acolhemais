@@ -169,7 +169,7 @@ export default class ONGAcaoController {
                     overlapScore = intersection / userInterestsSet.size;
                     if (union > 0) debugJaccard = intersection / union;
                 } else {
-                    overlapScore = 1;
+                    overlapScore = 0;
                 }
 
                 // C. Score Final
